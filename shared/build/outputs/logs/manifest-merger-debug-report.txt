@@ -1,0 +1,16 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/anamm/Documents/development/kmp/device-media-list/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9929419371371440679.xml:2:13-83
+INJECTED from /home/anamm/Documents/development/kmp/device-media-list/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9929419371371440679.xml:2:13-83
+	package
+		INJECTED from /home/anamm/Documents/development/kmp/device-media-list/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9929419371371440679.xml
+	xmlns:android
+		ADDED from /home/anamm/Documents/development/kmp/device-media-list/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9929419371371440679.xml:2:23-81
+uses-sdk
+INJECTED from /home/anamm/Documents/development/kmp/device-media-list/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9929419371371440679.xml reason: use-sdk injection requested
+INJECTED from /home/anamm/Documents/development/kmp/device-media-list/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9929419371371440679.xml
+INJECTED from /home/anamm/Documents/development/kmp/device-media-list/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9929419371371440679.xml
+	android:targetSdkVersion
+		INJECTED from /home/anamm/Documents/development/kmp/device-media-list/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9929419371371440679.xml
+	android:minSdkVersion
+		INJECTED from /home/anamm/Documents/development/kmp/device-media-list/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest9929419371371440679.xml
