@@ -1,0 +1,36 @@
+-- Migration 1 → 2: rebuild platform_setting with display_name and color_hex columns.
+-- CREATE TABLE IF NOT EXISTS ensures this works even if the table didn't exist yet.
+CREATE TABLE IF NOT EXISTS platform_setting (
+    platform TEXT NOT NULL PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE platform_setting_new (
+    platform TEXT NOT NULL PRIMARY KEY,
+    display_name TEXT NOT NULL,
+    color_hex TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+
+INSERT INTO platform_setting_new(platform, display_name, color_hex, enabled)
+SELECT
+    platform,
+    CASE platform
+        WHEN 'NETFLIX' THEN 'Netflix'
+        WHEN 'PRIME'   THEN 'Prime'
+        WHEN 'DISNEY'  THEN 'Disney+'
+        WHEN 'LOCAL'   THEN 'Local'
+        ELSE platform
+    END,
+    CASE platform
+        WHEN 'NETFLIX' THEN '#E50914'
+        WHEN 'PRIME'   THEN '#00A8E1'
+        WHEN 'DISNEY'  THEN '#1B4FA8'
+        WHEN 'LOCAL'   THEN '#4A4A5A'
+        ELSE '#4A4A5A'
+    END,
+    enabled
+FROM platform_setting;
+
+DROP TABLE IF EXISTS platform_setting;
+ALTER TABLE platform_setting_new RENAME TO platform_setting;

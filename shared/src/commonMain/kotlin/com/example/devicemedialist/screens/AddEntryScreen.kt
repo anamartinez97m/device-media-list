@@ -23,11 +23,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
-import androidx.compose.material.icons.rounded.Dns
-import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material.icons.rounded.Laptop
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material.icons.rounded.Tablet
+import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
@@ -39,9 +41,12 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +56,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import com.example.devicemedialist.LocalRepository
+import com.example.devicemedialist.data.Device
+import com.example.devicemedialist.data.Platform_setting
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -63,22 +72,36 @@ import com.example.devicemedialist.theme.CineTertiary
 
 private enum class EntryType { MOVIE, SERIES }
 
-private enum class Platform(val label: String, val iconText: String, val bgColor: Color) {
-    NETFLIX("Netflix", "N", Color(0xFFE50914)),
-    PRIME("Prime", "P", Color(0xFF00A8E1)),
-    DISNEY("Disney+", "D+", Color(0xFF1B4FA8)),
-    LOCAL("Local", "", Color(0xFF4A4A5A)),
+private fun parseHexColor(hex: String): Color {
+    val clean = hex.removePrefix("#")
+    return try {
+        when (clean.length) {
+            6 -> Color(0xFF000000L or clean.toLong(16))
+            8 -> Color(clean.toLong(16))
+            else -> Color(0xFF2A2A2BL)
+        }
+    } catch (_: NumberFormatException) { Color(0xFF2A2A2BL) }
 }
 
-private val platformList = listOf(Platform.NETFLIX, Platform.PRIME, Platform.DISNEY, Platform.LOCAL)
+private fun deviceIcon(type: String): ImageVector = when (type.uppercase()) {
+    "PHONE" -> Icons.Rounded.PhoneAndroid
+    "TABLET" -> Icons.Rounded.Tablet
+    "TV" -> Icons.Rounded.Tv
+    "LAPTOP" -> Icons.Rounded.Laptop
+    "PENDRIVE" -> Icons.Rounded.Usb
+    "SSD" -> Icons.Rounded.Storage
+    else -> Icons.Rounded.PhoneAndroid
+}
 
-private data class DeviceOption(val name: String, val storage: String, val icon: ImageVector)
-
-private val deviceOptions = listOf(
-    DeviceOption("iPhone 15 Pro", "12 GB Available", Icons.Rounded.PhoneAndroid),
-    DeviceOption("MacBook Pro", "240 GB Available", Icons.Rounded.Laptop),
-    DeviceOption("Home TV Server", "2.4 TB Available", Icons.Rounded.Dns),
-)
+private fun deviceStorageLabel(device: Device): String {
+    val used = device.used_storage_gb
+    val total = device.total_storage_gb
+    return if (used != null && total != null) {
+        val available = (total - used).coerceAtLeast(0.0)
+        if (available >= 1000.0) "${ "%.1f".format(available / 1000.0)} TB Available"
+        else "${ "%.1f".format(available)} GB Available"
+    } else "Streaming Only"
+}
 
 private val genres = listOf(
     "Action", "Animation", "Comedy", "Documentary",
@@ -87,12 +110,42 @@ private val genres = listOf(
 
 @Composable
 fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
+    val repository = LocalRepository.current
+    val scope = rememberCoroutineScope()
+    val devices by repository.devices.collectAsState()
+
     var selectedType by remember { mutableStateOf(EntryType.MOVIE) }
     var title by remember { mutableStateOf("") }
     var releaseYear by remember { mutableStateOf("") }
     var selectedGenre by remember { mutableStateOf("") }
-    var selectedPlatform by remember { mutableStateOf(Platform.PRIME) }
-    var selectedDevices by remember { mutableStateOf(setOf("MacBook Pro")) }
+    var selectedPlatform by remember { mutableStateOf<Platform_setting?>(null) }
+    var selectedDeviceIds by remember { mutableStateOf(emptySet<String>()) }
+
+    val enabledPlatforms by repository.enabledPlatforms.collectAsState()
+
+    LaunchedEffect(enabledPlatforms) {
+        if (enabledPlatforms.isNotEmpty() && selectedPlatform !in enabledPlatforms) {
+            selectedPlatform = enabledPlatforms.first()
+        }
+    }
+
+    val doSave: () -> Unit = {
+        if (title.isNotBlank()) {
+            scope.launch {
+                repository.insertMediaEntry(
+                    title = title.trim(),
+                    platform = selectedPlatform?.platform ?: "",
+                    entryType = selectedType.name,
+                    releaseYear = releaseYear.toLongOrNull(),
+                    genre = selectedGenre.ifEmpty { null },
+                    deviceIds = selectedDeviceIds.toList(),
+                )
+                onSave()
+            }
+        } else {
+            onSave()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -130,7 +183,7 @@ fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center,
             )
-            TextButton(onClick = onSave) {
+            TextButton(onClick = doSave) {
                 Text(
                     text = "Save",
                     style = MaterialTheme.typography.labelLarge,
@@ -192,19 +245,24 @@ fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FormSectionLabel("SOURCE PLATFORM")
-                PlatformSelector(selected = selectedPlatform, onPlatformSelected = { selectedPlatform = it })
+                PlatformSelector(
+                    platforms = enabledPlatforms,
+                    selected = selectedPlatform,
+                    onPlatformSelected = { selectedPlatform = it },
+                )
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FormSectionLabel("DOWNLOADED ON")
                 DeviceSelector(
-                    selectedDevices = selectedDevices,
-                    onSelectionChanged = { selectedDevices = it },
+                    devices = devices,
+                    selectedDeviceIds = selectedDeviceIds,
+                    onSelectionChanged = { selectedDeviceIds = it },
                 )
             }
 
             Spacer(modifier = Modifier.height(4.dp))
-            SaveEntryButton(onClick = onSave)
+            SaveEntryButton(onClick = doSave)
         }
     }
 }
@@ -300,29 +358,42 @@ private fun GenreDropdown(selected: String, onGenreSelected: (String) -> Unit) {
 }
 
 @Composable
-private fun PlatformSelector(selected: Platform, onPlatformSelected: (Platform) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        platformList.forEach { platform ->
-            PlatformButton(
-                platform = platform,
-                isSelected = selected == platform,
-                onClick = { onPlatformSelected(platform) },
-                modifier = Modifier.weight(1f),
-            )
+private fun PlatformSelector(
+    platforms: List<Platform_setting>,
+    selected: Platform_setting?,
+    onPlatformSelected: (Platform_setting) -> Unit,
+) {
+    if (platforms.isEmpty()) {
+        Text(
+            text = "No platforms available. Add one in Settings.",
+            style = MaterialTheme.typography.labelSmall,
+            color = CineOnSurfaceVariant,
+        )
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            platforms.forEach { platform ->
+                PlatformButton(
+                    platform = platform,
+                    isSelected = selected == platform,
+                    onClick = { onPlatformSelected(platform) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun PlatformButton(
-    platform: Platform,
+    platform: Platform_setting,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier,
 ) {
+    val badgeColor = parseHexColor(platform.color_hex)
     Column(
         modifier = modifier
             .clip(MaterialTheme.shapes.medium)
@@ -341,27 +412,18 @@ private fun PlatformButton(
             modifier = Modifier
                 .size(34.dp)
                 .clip(CircleShape)
-                .background(platform.bgColor),
+                .background(badgeColor),
             contentAlignment = Alignment.Center,
         ) {
-            if (platform == Platform.LOCAL) {
-                Icon(
-                    imageVector = Icons.Rounded.FolderOpen,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp),
-                )
-            } else {
-                Text(
-                    text = platform.iconText,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            Text(
+                text = platform.display_name.take(2).uppercase(),
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+            )
         }
         Text(
-            text = platform.label,
+            text = platform.display_name,
             style = MaterialTheme.typography.labelSmall,
             color = if (isSelected) CineTertiary else CineOnSurfaceVariant,
         )
@@ -370,28 +432,37 @@ private fun PlatformButton(
 
 @Composable
 private fun DeviceSelector(
-    selectedDevices: Set<String>,
+    devices: List<Device>,
+    selectedDeviceIds: Set<String>,
     onSelectionChanged: (Set<String>) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        deviceOptions.forEach { device ->
-            val isSelected = device.name in selectedDevices
-            DeviceRow(
-                device = device,
-                isSelected = isSelected,
-                onToggle = {
-                    onSelectionChanged(
-                        if (isSelected) selectedDevices - device.name
-                        else selectedDevices + device.name
-                    )
-                },
-            )
+    if (devices.isEmpty()) {
+        Text(
+            text = "No devices added yet. Go to Devices tab to add one.",
+            style = MaterialTheme.typography.labelSmall,
+            color = CineOnSurfaceVariant,
+        )
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            devices.forEach { device ->
+                val isSelected = device.id in selectedDeviceIds
+                DeviceRow(
+                    device = device,
+                    isSelected = isSelected,
+                    onToggle = {
+                        onSelectionChanged(
+                            if (isSelected) selectedDeviceIds - device.id
+                            else selectedDeviceIds + device.id
+                        )
+                    },
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun DeviceRow(device: DeviceOption, isSelected: Boolean, onToggle: () -> Unit) {
+private fun DeviceRow(device: Device, isSelected: Boolean, onToggle: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -407,7 +478,7 @@ private fun DeviceRow(device: DeviceOption, isSelected: Boolean, onToggle: () ->
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = device.icon,
+            imageVector = deviceIcon(device.type),
             contentDescription = null,
             tint = if (isSelected) CineTertiary else CineOnSurfaceVariant,
             modifier = Modifier.size(20.dp),
@@ -421,7 +492,7 @@ private fun DeviceRow(device: DeviceOption, isSelected: Boolean, onToggle: () ->
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = device.storage,
+                text = deviceStorageLabel(device),
                 style = MaterialTheme.typography.labelSmall,
                 color = CineOnSurfaceVariant,
             )

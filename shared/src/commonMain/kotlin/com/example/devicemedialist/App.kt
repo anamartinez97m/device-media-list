@@ -3,6 +3,8 @@ package com.example.devicemedialist
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.GridView
@@ -27,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.devicemedialist.components.TopBar
+import com.example.devicemedialist.data.AppRepository
 import com.example.devicemedialist.screens.AddEntryScreen
 import com.example.devicemedialist.screens.DevicesScreen
 import com.example.devicemedialist.screens.HomeScreen
@@ -37,6 +40,10 @@ import com.example.devicemedialist.theme.CineSurfaceContainerLow
 import com.example.devicemedialist.theme.CineTertiary
 import com.example.devicemedialist.theme.CineTrackTheme
 
+val LocalRepository = staticCompositionLocalOf<AppRepository> {
+    error("No AppRepository provided")
+}
+
 private data class NavTab(val label: String, val icon: ImageVector)
 
 private val navTabs = listOf(
@@ -46,7 +53,8 @@ private val navTabs = listOf(
 )
 
 @Composable
-fun App() {
+fun App(repository: AppRepository) {
+    CompositionLocalProvider(LocalRepository provides repository) {
     CineTrackTheme {
         var selectedTab by remember { mutableIntStateOf(0) }
         var showAddEntry by remember { mutableStateOf(false) }
@@ -113,5 +121,6 @@ fun App() {
             )
         }
         }
+    }
     }
 }

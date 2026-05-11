@@ -1,0 +1,30 @@
+CREATE TABLE media_entry (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    entry_type TEXT,
+    release_year INTEGER,
+    genre TEXT,
+    platform TEXT NOT NULL
+);
+
+selectAllWithFirstDevice:
+SELECT
+    me.id,
+    me.title,
+    me.entry_type,
+    me.release_year,
+    me.genre,
+    me.platform,
+    d.type AS first_device_type
+FROM media_entry me
+LEFT JOIN media_entry_device med ON med.entry_id = me.id
+LEFT JOIN device d ON d.id = med.device_id
+GROUP BY me.id
+ORDER BY me.title ASC;
+
+insert:
+INSERT OR REPLACE INTO media_entry(id, title, entry_type, release_year, genre, platform)
+VALUES (?, ?, ?, ?, ?, ?);
+
+delete:
+DELETE FROM media_entry WHERE id = ?;

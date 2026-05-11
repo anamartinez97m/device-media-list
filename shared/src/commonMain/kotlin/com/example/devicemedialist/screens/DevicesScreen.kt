@@ -2,6 +2,7 @@ package com.example.devicemedialist.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,25 +17,38 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.Usb
+import androidx.compose.material.icons.rounded.Laptop
+import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Tablet
 import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,58 +56,47 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.devicemedialist.LocalRepository
+import com.example.devicemedialist.data.Device
 import com.example.devicemedialist.theme.CineGlassBorder
 import com.example.devicemedialist.theme.CineOnSurfaceVariant
 import com.example.devicemedialist.theme.CineOnTertiary
 import com.example.devicemedialist.theme.CineSurfaceContainerHigh
 import com.example.devicemedialist.theme.CineSurfaceContainerLow
 import com.example.devicemedialist.theme.CineTertiary
+import kotlinx.coroutines.launch
 
-private enum class DeviceStatus(val label: String, val color: Color) {
-    ONLINE_SYNCING("Online • Syncing", Color(0xFF4CAF50)),
-    OFFLINE("Offline", Color(0xFF757575)),
-    ONLINE_STREAMING("Online • Streaming", Color(0xFF4CAF50)),
+private data class DeviceTypeOption(val type: String, val label: String, val icon: ImageVector)
+
+private val deviceTypeOptions = listOf(
+    DeviceTypeOption("PHONE", "Phone", Icons.Rounded.PhoneAndroid),
+    DeviceTypeOption("TABLET", "Tablet", Icons.Rounded.Tablet),
+    DeviceTypeOption("TV", "TV", Icons.Rounded.Tv),
+    DeviceTypeOption("LAPTOP", "Laptop", Icons.Rounded.Laptop),
+    DeviceTypeOption("PENDRIVE", "Pendrive", Icons.Rounded.Usb),
+    DeviceTypeOption("SSD", "SSD", Icons.Rounded.Storage),
+)
+
+private fun deviceIcon(type: String): ImageVector = when (type.uppercase()) {
+    "PHONE" -> Icons.Rounded.PhoneAndroid
+    "TABLET" -> Icons.Rounded.Tablet
+    "TV" -> Icons.Rounded.Tv
+    "LAPTOP" -> Icons.Rounded.Laptop
+    "PENDRIVE" -> Icons.Rounded.Usb
+    "SSD" -> Icons.Rounded.Storage
+    else -> Icons.Rounded.PhoneAndroid
 }
-
-private data class DeviceItem(
-    val name: String,
-    val status: DeviceStatus,
-    val icon: ImageVector,
-    val usedGb: Int?,
-    val totalGb: Int?,
-    val titlesDownloaded: Int,
-)
-
-private val sampleDevices = listOf(
-    DeviceItem(
-        name = "My Phone",
-        status = DeviceStatus.ONLINE_SYNCING,
-        icon = Icons.Rounded.PhoneAndroid,
-        usedGb = 45,
-        totalGb = 128,
-        titlesDownloaded = 24,
-    ),
-    DeviceItem(
-        name = "Work Tablet",
-        status = DeviceStatus.OFFLINE,
-        icon = Icons.Rounded.Tablet,
-        usedGb = 112,
-        totalGb = 256,
-        titlesDownloaded = 56,
-    ),
-    DeviceItem(
-        name = "Home TV",
-        status = DeviceStatus.ONLINE_STREAMING,
-        icon = Icons.Rounded.Tv,
-        usedGb = null,
-        totalGb = null,
-        titlesDownloaded = 0,
-    ),
-)
 
 @Composable
 fun DevicesScreen(paddingValues: PaddingValues) {
+    val repository = LocalRepository.current
+    val devices by repository.devices.collectAsState()
+    val entriesPerDevice by repository.entriesPerDevice.collectAsState()
+    val scope = rememberCoroutineScope()
+    var showAddDialog by remember { mutableStateOf(false) }
+
     LazyColumn(
         contentPadding = PaddingValues(
             top = paddingValues.calculateTopPadding() + 16.dp,
@@ -104,15 +107,37 @@ fun DevicesScreen(paddingValues: PaddingValues) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        item { DevicesHeader() }
-        items(sampleDevices) { device ->
-            DeviceCard(device)
+        item {
+            DevicesHeader(onAddClick = { showAddDialog = true })
         }
+        if (devices.isEmpty()) {
+            item { EmptyDevicesHint() }
+        } else {
+            items(devices) { device ->
+                DeviceCard(
+                    device = device,
+                    titlesDownloaded = entriesPerDevice[device.id] ?: 0L,
+                    onDelete = { scope.launch { repository.deleteDevice(device.id) } },
+                )
+            }
+        }
+    }
+
+    if (showAddDialog) {
+        AddDeviceDialog(
+            onDismiss = { showAddDialog = false },
+            onConfirm = { name, type, usedGb, totalGb ->
+                scope.launch {
+                    repository.insertDevice(name, type, usedGb, totalGb)
+                }
+                showAddDialog = false
+            },
+        )
     }
 }
 
 @Composable
-private fun DevicesHeader() {
+private fun DevicesHeader(onAddClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -134,7 +159,7 @@ private fun DevicesHeader() {
         }
         Spacer(modifier = Modifier.width(12.dp))
         Button(
-            onClick = {},
+            onClick = onAddClick,
             shape = MaterialTheme.shapes.extraLarge,
             colors = ButtonDefaults.buttonColors(
                 containerColor = CineTertiary,
@@ -158,7 +183,40 @@ private fun DevicesHeader() {
 }
 
 @Composable
-private fun DeviceCard(device: DeviceItem) {
+private fun EmptyDevicesHint() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Rounded.Movie,
+                contentDescription = null,
+                tint = CineOnSurfaceVariant,
+                modifier = Modifier.size(40.dp),
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "No devices yet",
+                style = MaterialTheme.typography.labelLarge,
+                color = CineOnSurfaceVariant,
+            )
+            Text(
+                text = "Tap \"Add Device\" to get started",
+                style = MaterialTheme.typography.labelSmall,
+                color = CineOnSurfaceVariant.copy(alpha = 0.6f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeviceCard(device: Device, titlesDownloaded: Long, onDelete: () -> Unit) {
+    val icon = deviceIcon(device.type)
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -176,7 +234,7 @@ private fun DeviceCard(device: DeviceItem) {
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = device.icon,
+                    imageVector = icon,
                     contentDescription = null,
                     tint = CineTertiary,
                     modifier = Modifier.size(22.dp),
@@ -191,26 +249,10 @@ private fun DeviceCard(device: DeviceItem) {
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(device.status.color),
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = device.status.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = device.status.color,
-                    )
-                }
-            }
-            IconButton(onClick = {}) {
-                Icon(
-                    imageVector = Icons.Rounded.MoreVert,
-                    contentDescription = "More options",
-                    tint = CineOnSurfaceVariant,
+                Text(
+                    text = device.type.lowercase().replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CineOnSurfaceVariant,
                 )
             }
         }
@@ -228,18 +270,18 @@ private fun DeviceCard(device: DeviceItem) {
             )
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = if (device.usedGb != null && device.totalGb != null)
-                    "${device.usedGb}GB / ${device.totalGb}GB"
+                text = if (device.used_storage_gb != null && device.total_storage_gb != null)
+                    "${"%.1f".format(device.used_storage_gb)} GB / ${"%.1f".format(device.total_storage_gb)} GB"
                 else
                     "Streaming Only",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
-        if (device.usedGb != null && device.totalGb != null) {
+        if (device.used_storage_gb != null && device.total_storage_gb != null && device.total_storage_gb > 0) {
             Spacer(modifier = Modifier.height(8.dp))
             LinearProgressIndicator(
-                progress = { device.usedGb.toFloat() / device.totalGb.toFloat() },
+                progress = { (device.used_storage_gb / device.total_storage_gb).toFloat().coerceIn(0f, 1f) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(4.dp)
@@ -254,27 +296,215 @@ private fun DeviceCard(device: DeviceItem) {
             Icon(
                 imageVector = Icons.Rounded.Check,
                 contentDescription = null,
-                tint = if (device.titlesDownloaded > 0) CineTertiary else CineOnSurfaceVariant,
+                tint = if (titlesDownloaded > 0) CineTertiary else CineOnSurfaceVariant,
                 modifier = Modifier.size(16.dp),
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "${device.titlesDownloaded} Titles Downloaded",
+                text = "$titlesDownloaded Titles Downloaded",
                 style = MaterialTheme.typography.labelLarge,
                 color = CineOnSurfaceVariant,
             )
             Spacer(modifier = Modifier.weight(1f))
             TextButton(
-                onClick = {},
+                onClick = { showDeleteConfirm = true },
                 contentPadding = PaddingValues(horizontal = 0.dp),
             ) {
                 Text(
-                    text = "MANAGE",
+                    text = "REMOVE",
                     style = MaterialTheme.typography.labelSmall,
-                    color = CineTertiary,
+                    color = Color(0xFFE57373),
                     fontWeight = FontWeight.Bold,
                 )
             }
         }
     }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = {
+                Text(
+                    text = "Remove Device",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Text(
+                    text = "Remove \"${device.name}\"? This won't delete the media entries linked to it.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = CineOnSurfaceVariant,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onDelete(); showDeleteConfirm = false }) {
+                    Text(text = "Remove", color = Color(0xFFE57373))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(text = "Cancel", color = CineTertiary)
+                }
+            },
+            containerColor = CineSurfaceContainerHigh,
+        )
+    }
+}
+
+@Composable
+private fun AddDeviceDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, type: String, usedGb: Double?, totalGb: Double?) -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    var selectedType by remember { mutableStateOf("PHONE") }
+    var hasStorage by remember { mutableStateOf(false) }
+    var usedGbText by remember { mutableStateOf("") }
+    var totalGbText by remember { mutableStateOf("") }
+
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = CineTertiary,
+        unfocusedBorderColor = CineGlassBorder,
+        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+        cursorColor = CineTertiary,
+        focusedContainerColor = CineSurfaceContainerLow,
+        unfocusedContainerColor = CineSurfaceContainerLow,
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = CineSurfaceContainerHigh,
+        title = {
+            Text(
+                text = "Add Device",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Device name", color = CineOnSurfaceVariant) },
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = textFieldColors,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    text = "DEVICE TYPE",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CineOnSurfaceVariant,
+                )
+                deviceTypeOptions.chunked(3).forEach { rowOptions ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        rowOptions.forEach { option ->
+                            val isSelected = option.type == selectedType
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(MaterialTheme.shapes.small)
+                                    .background(if (isSelected) CineTertiary.copy(alpha = 0.15f) else CineSurfaceContainerLow)
+                                    .border(
+                                        width = if (isSelected) 1.5.dp else 1.dp,
+                                        color = if (isSelected) CineTertiary else CineGlassBorder,
+                                        shape = MaterialTheme.shapes.small,
+                                    )
+                                    .clickable { selectedType = option.type }
+                                    .padding(vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = option.icon,
+                                    contentDescription = option.label,
+                                    tint = if (isSelected) CineTertiary else CineOnSurfaceVariant,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Text(
+                                    text = option.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isSelected) CineTertiary else CineOnSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Has local storage",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = hasStorage,
+                        onCheckedChange = { hasStorage = it },
+                        colors = SwitchDefaults.colors(
+                            checkedTrackColor = CineTertiary,
+                            checkedThumbColor = CineOnTertiary,
+                            uncheckedTrackColor = CineSurfaceContainerLow,
+                            uncheckedThumbColor = CineOnSurfaceVariant,
+                        ),
+                    )
+                }
+                if (hasStorage) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = usedGbText,
+                            onValueChange = { usedGbText = it },
+                            label = { Text("Used (GB)", color = CineOnSurfaceVariant) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            shape = MaterialTheme.shapes.medium,
+                            colors = textFieldColors,
+                            modifier = Modifier.weight(1f),
+                        )
+                        OutlinedTextField(
+                            value = totalGbText,
+                            onValueChange = { totalGbText = it },
+                            label = { Text("Total (GB)", color = CineOnSurfaceVariant) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            shape = MaterialTheme.shapes.medium,
+                            colors = textFieldColors,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (name.isNotBlank()) {
+                        val usedGb = if (hasStorage) usedGbText.toDoubleOrNull() else null
+                        val totalGb = if (hasStorage) totalGbText.toDoubleOrNull() else null
+                        onConfirm(name.trim(), selectedType, usedGb, totalGb)
+                    }
+                },
+            ) {
+                Text(text = "Add", color = CineTertiary, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Cancel", color = CineOnSurfaceVariant)
+            }
+        },
+    )
 }

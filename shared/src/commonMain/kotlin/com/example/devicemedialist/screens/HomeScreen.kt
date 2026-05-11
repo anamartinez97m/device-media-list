@@ -24,7 +24,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddCircleOutline
 import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material.icons.rounded.FilterList
+import androidx.compose.material.icons.rounded.Laptop
+import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Tablet
 import androidx.compose.material.icons.rounded.Tv
@@ -36,6 +40,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +52,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.devicemedialist.LocalRepository
+import com.example.devicemedialist.data.SelectAllWithFirstDevice
+import com.example.devicemedialist.data.StorageSummary
 import com.example.devicemedialist.theme.CineGlassBorder
 import com.example.devicemedialist.theme.CineOnSurfaceVariant
 import com.example.devicemedialist.theme.CineOnTertiary
@@ -53,62 +62,43 @@ import com.example.devicemedialist.theme.CineSurfaceContainerHigh
 import com.example.devicemedialist.theme.CineSurfaceContainerLow
 import com.example.devicemedialist.theme.CineTertiary
 
-private enum class MediaSource(val label: String, val color: Color) {
-    NETFLIX("NETFLIX", Color(0xFFE50914)),
-    PRIME("PRIME", Color(0xFF00A8E1)),
-    LOCAL("LOCAL", Color(0xFF2A2A2B)),
+private fun platformBadgeColor(platform: String): Color = when (platform.uppercase()) {
+    "NETFLIX" -> Color(0xFFE50914)
+    "PRIME" -> Color(0xFF00A8E1)
+    "DISNEY" -> Color(0xFF1B4FA8)
+    else -> Color(0xFF2A2A2B)
 }
 
-private enum class DeviceType(val icon: ImageVector) {
-    PHONE(Icons.Rounded.PhoneAndroid),
-    TABLET(Icons.Rounded.Tablet),
-    TV(Icons.Rounded.Tv),
+private fun platformPosterBrush(platform: String): Brush = when (platform.uppercase()) {
+    "NETFLIX" -> Brush.verticalGradient(listOf(Color(0xFF1A0000), Color(0xFF5A0000), Color(0xFF8B0000), Color(0xFF0A0A0A)))
+    "PRIME" -> Brush.verticalGradient(listOf(Color(0xFF001A2A), Color(0xFF003355), Color(0xFF005F8A), Color(0xFF0A0A0A)))
+    "DISNEY" -> Brush.verticalGradient(listOf(Color(0xFF000A1A), Color(0xFF001540), Color(0xFF1B4FA8), Color(0xFF0A0A0A)))
+    else -> Brush.verticalGradient(listOf(Color(0xFF0A0A14), Color(0xFF1A1A2A), Color(0xFF3A3A4A), Color(0xFF0A0A0A)))
 }
 
-private data class MediaItem(
-    val title: String,
-    val genre: String,
-    val year: Int,
-    val source: MediaSource,
-    val device: DeviceType,
-    val posterBrush: Brush,
-)
+private fun deviceIcon(type: String?): ImageVector? = when (type?.uppercase()) {
+    "PHONE" -> Icons.Rounded.PhoneAndroid
+    "TABLET" -> Icons.Rounded.Tablet
+    "TV" -> Icons.Rounded.Tv
+    "LAPTOP" -> Icons.Rounded.Laptop
+    "PENDRIVE" -> Icons.Rounded.Usb
+    "SSD" -> Icons.Rounded.Storage
+    else -> null
+}
 
-private val sampleMedia = listOf(
-    MediaItem(
-        title = "Desert Planet",
-        genre = "Sci-Fi",
-        year = 2024,
-        source = MediaSource.NETFLIX,
-        device = DeviceType.TV,
-        posterBrush = Brush.verticalGradient(
-            listOf(Color(0xFF1A0800), Color(0xFF6B2800), Color(0xFFD45A00), Color(0xFF0A0A0A))
-        ),
-    ),
-    MediaItem(
-        title = "The Woods",
-        genre = "Thriller",
-        year = 2023,
-        source = MediaSource.PRIME,
-        device = DeviceType.TV,
-        posterBrush = Brush.verticalGradient(
-            listOf(Color(0xFF050F05), Color(0xFF0D2B10), Color(0xFF1A3D1E), Color(0xFF0A0A0A))
-        ),
-    ),
-    MediaItem(
-        title = "Neon Run",
-        genre = "Action",
-        year = 2025,
-        source = MediaSource.LOCAL,
-        device = DeviceType.TV,
-        posterBrush = Brush.verticalGradient(
-            listOf(Color(0xFF05050F), Color(0xFF0D1035), Color(0xFF1A2060), Color(0xFF0A0A0A))
-        ),
-    ),
-)
+private fun formatStorage(gb: Float): String = if (gb >= 1000f) {
+    val tb = gb / 1000f
+    "%.1f TB".format(tb)
+} else {
+    "%.1f GB".format(gb)
+}
 
 @Composable
 fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit) {
+    val repository = LocalRepository.current
+    val entries by repository.mediaEntries.collectAsState()
+    val storage by repository.storageSummary.collectAsState()
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         contentPadding = PaddingValues(
@@ -122,7 +112,7 @@ fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit) {
         modifier = Modifier.fillMaxSize(),
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            StorageSummaryCard(usedTb = 1.2f, totalTb = 2.0f)
+            StorageSummaryCard(storage)
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             AddNewEntryButton(onAddEntry = onAddEntry)
@@ -130,14 +120,25 @@ fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             LibrarySectionHeader()
         }
-        items(sampleMedia) { media ->
-            MediaCard(media)
+        if (entries.isEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                EmptyLibraryHint()
+            }
+        } else {
+            items(entries) { entry ->
+                MediaCard(entry)
+            }
         }
     }
 }
 
 @Composable
-private fun StorageSummaryCard(usedTb: Float, totalTb: Float) {
+private fun StorageSummaryCard(storage: StorageSummary) {
+    val hasStorage = storage.totalGb > 0f
+    val progress = if (hasStorage) (storage.usedGb / storage.totalGb).coerceIn(0f, 1f) else 0f
+    val usedLabel = if (hasStorage) formatStorage(storage.usedGb) else "—"
+    val totalLabel = if (hasStorage) formatStorage(storage.totalGb) else "No devices"
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -171,21 +172,21 @@ private fun StorageSummaryCard(usedTb: Float, totalTb: Float) {
             Spacer(modifier = Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text = "${usedTb} TB",
+                    text = usedLabel,
                     style = MaterialTheme.typography.displayLarge.copy(fontSize = 32.sp),
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
-                    text = "of ${totalTb} TB Used",
+                    text = if (hasStorage) "of $totalLabel Used" else totalLabel,
                     style = MaterialTheme.typography.bodyMedium,
                     color = CineOnSurfaceVariant,
                 )
             }
             Spacer(modifier = Modifier.height(10.dp))
             LinearProgressIndicator(
-                progress = { usedTb / totalTb },
+                progress = { progress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(4.dp)
@@ -255,7 +256,48 @@ private fun LibrarySectionHeader() {
 }
 
 @Composable
-private fun MediaCard(media: MediaItem) {
+private fun EmptyLibraryHint() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Rounded.Movie,
+                contentDescription = null,
+                tint = CineOnSurfaceVariant,
+                modifier = Modifier.size(40.dp),
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "No entries yet",
+                style = MaterialTheme.typography.labelLarge,
+                color = CineOnSurfaceVariant,
+            )
+            Text(
+                text = "Tap \"Add New Entry\" to get started",
+                style = MaterialTheme.typography.labelSmall,
+                color = CineOnSurfaceVariant.copy(alpha = 0.6f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MediaCard(entry: SelectAllWithFirstDevice) {
+    val icon: ImageVector? = deviceIcon(entry.first_device_type)
+    val badgeColor = platformBadgeColor(entry.platform)
+    val posterBrush = platformPosterBrush(entry.platform)
+    val subtitle = buildString {
+        entry.genre?.let { append(it) }
+        entry.release_year?.let {
+            if (isNotEmpty()) append(" • ")
+            append(it)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -265,7 +307,7 @@ private fun MediaCard(media: MediaItem) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(media.posterBrush),
+                .background(posterBrush),
         )
         Box(
             modifier = Modifier
@@ -278,24 +320,26 @@ private fun MediaCard(media: MediaItem) {
                     )
                 ),
         )
-        Box(
-            modifier = Modifier
-                .padding(8.dp)
-                .size(28.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.45f))
-                .align(Alignment.TopStart),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = media.device.icon,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(16.dp),
-            )
+        if (icon != null) {
+            Box(
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .align(Alignment.TopStart),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
         Text(
-            text = media.source.label,
+            text = entry.platform.uppercase(),
             style = MaterialTheme.typography.labelSmall,
             color = Color.White,
             fontWeight = FontWeight.Bold,
@@ -303,7 +347,7 @@ private fun MediaCard(media: MediaItem) {
                 .align(Alignment.TopEnd)
                 .padding(8.dp)
                 .clip(RoundedCornerShape(4.dp))
-                .background(media.source.color)
+                .background(badgeColor)
                 .padding(horizontal = 5.dp, vertical = 2.dp),
         )
         Column(
@@ -311,13 +355,15 @@ private fun MediaCard(media: MediaItem) {
                 .align(Alignment.BottomStart)
                 .padding(8.dp),
         ) {
+            if (subtitle.isNotEmpty()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = CineOnSurfaceVariant,
+                )
+            }
             Text(
-                text = "${media.genre} • ${media.year}",
-                style = MaterialTheme.typography.labelSmall,
-                color = CineOnSurfaceVariant,
-            )
-            Text(
-                text = media.title,
+                text = entry.title,
                 style = MaterialTheme.typography.labelLarge,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,

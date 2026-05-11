@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.devicemedialist.androidApp-mergeDebugResources-38:/values-v21/values-v21.xml",
+            "outputFile": "com.example.devicemedialist.androidApp-mergeDebugResources-40:/values-v21/values-v21.xml",
             "map": [
                 {
-                    "source": "/home/anamm/.gradle/caches/9.4.1/transforms/4ed69b69f931632a0174fb5493c2315f/transformed/core-1.13.0/res/values-v21/values-v21.xml",
+                    "source": "/home/anamm/.gradle/caches/9.4.1/transforms/18f04a3ce35f4b212a8cc0b1ebac5b12/transformed/core-1.13.0/res/values-v21/values-v21.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,13",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4",

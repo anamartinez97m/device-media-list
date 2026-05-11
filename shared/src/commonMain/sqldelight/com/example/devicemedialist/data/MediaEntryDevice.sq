@@ -1,0 +1,22 @@
+CREATE TABLE media_entry_device (
+    entry_id TEXT NOT NULL,
+    device_id TEXT NOT NULL,
+    PRIMARY KEY (entry_id, device_id),
+    FOREIGN KEY (entry_id) REFERENCES media_entry(id) ON DELETE CASCADE,
+    FOREIGN KEY (device_id) REFERENCES device(id) ON DELETE CASCADE
+);
+
+insertLink:
+INSERT OR IGNORE INTO media_entry_device(entry_id, device_id) VALUES (?, ?);
+
+selectDeviceIdsForEntry:
+SELECT device_id FROM media_entry_device WHERE entry_id = ?;
+
+deleteForEntry:
+DELETE FROM media_entry_device WHERE entry_id = ?;
+
+deleteForDevice:
+DELETE FROM media_entry_device WHERE device_id = ?;
+
+selectCountPerDevice:
+SELECT device_id, COUNT(*) AS entry_count FROM media_entry_device GROUP BY device_id;

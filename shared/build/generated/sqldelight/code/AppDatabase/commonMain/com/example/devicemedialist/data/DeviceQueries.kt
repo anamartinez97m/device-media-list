@@ -1,0 +1,73 @@
+package com.example.devicemedialist.`data`
+
+import app.cash.sqldelight.Query
+import app.cash.sqldelight.TransacterImpl
+import app.cash.sqldelight.db.SqlDriver
+import kotlin.Any
+import kotlin.Double
+import kotlin.String
+
+public class DeviceQueries(
+  driver: SqlDriver,
+) : TransacterImpl(driver) {
+  public fun <T : Any> selectAll(mapper: (
+    id: String,
+    name: String,
+    type: String,
+    used_storage_gb: Double?,
+    total_storage_gb: Double?,
+  ) -> T): Query<T> = Query(-2_119_690_972, arrayOf("device"), driver, "Device.sq", "selectAll",
+      "SELECT device.id, device.name, device.type, device.used_storage_gb, device.total_storage_gb FROM device") {
+      cursor ->
+    mapper(
+      cursor.getString(0)!!,
+      cursor.getString(1)!!,
+      cursor.getString(2)!!,
+      cursor.getDouble(3),
+      cursor.getDouble(4)
+    )
+  }
+
+  public fun selectAll(): Query<Device> = selectAll { id, name, type, used_storage_gb,
+      total_storage_gb ->
+    Device(
+      id,
+      name,
+      type,
+      used_storage_gb,
+      total_storage_gb
+    )
+  }
+
+  public fun insert(
+    id: String,
+    name: String,
+    type: String,
+    used_storage_gb: Double?,
+    total_storage_gb: Double?,
+  ) {
+    driver.execute(-1_672_686_342, """
+        |INSERT OR REPLACE INTO device(id, name, type, used_storage_gb, total_storage_gb)
+        |VALUES (?, ?, ?, ?, ?)
+        """.trimMargin(), 5) {
+          bindString(0, id)
+          bindString(1, name)
+          bindString(2, type)
+          bindDouble(3, used_storage_gb)
+          bindDouble(4, total_storage_gb)
+        }
+    notifyQueries(-1_672_686_342) { emit ->
+      emit("device")
+    }
+  }
+
+  public fun delete(id: String) {
+    driver.execute(-1_824_352_276, """DELETE FROM device WHERE id = ?""", 1) {
+          bindString(0, id)
+        }
+    notifyQueries(-1_824_352_276) { emit ->
+      emit("device")
+      emit("media_entry_device")
+    }
+  }
+}

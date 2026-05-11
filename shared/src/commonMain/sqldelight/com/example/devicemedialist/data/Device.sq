@@ -1,0 +1,17 @@
+CREATE TABLE device (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    used_storage_gb REAL,
+    total_storage_gb REAL
+);
+
+selectAll:
+SELECT * FROM device;
+
+insert:
+INSERT OR REPLACE INTO device(id, name, type, used_storage_gb, total_storage_gb)
+VALUES (?, ?, ?, ?, ?);
+
+delete:
+DELETE FROM device WHERE id = ?;

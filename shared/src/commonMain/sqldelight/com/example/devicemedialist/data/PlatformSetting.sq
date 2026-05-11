@@ -1,0 +1,24 @@
+CREATE TABLE platform_setting (
+    platform TEXT NOT NULL PRIMARY KEY,
+    display_name TEXT NOT NULL,
+    color_hex TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+
+selectAll:
+SELECT * FROM platform_setting ORDER BY display_name ASC;
+
+selectEnabled:
+SELECT * FROM platform_setting WHERE enabled = 1 ORDER BY display_name ASC;
+
+insertIfNotExists:
+INSERT OR IGNORE INTO platform_setting(platform, display_name, color_hex) VALUES (?, ?, ?);
+
+insert:
+INSERT OR REPLACE INTO platform_setting(platform, display_name, color_hex, enabled) VALUES (?, ?, ?, 1);
+
+delete:
+DELETE FROM platform_setting WHERE platform = ?;
+
+setEnabled:
+UPDATE platform_setting SET enabled = ? WHERE platform = ?;
