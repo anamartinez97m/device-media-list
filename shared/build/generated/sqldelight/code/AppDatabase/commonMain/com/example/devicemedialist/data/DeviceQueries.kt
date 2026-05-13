@@ -61,6 +61,51 @@ public class DeviceQueries(
     }
   }
 
+  public fun update(
+    name: String,
+    type: String,
+    used_storage_gb: Double?,
+    total_storage_gb: Double?,
+    id: String,
+  ) {
+    driver.execute(-1_327_740_150,
+        """UPDATE device SET name = ?, type = ?, used_storage_gb = ?, total_storage_gb = ? WHERE id = ?""",
+        5) {
+          bindString(0, name)
+          bindString(1, type)
+          bindDouble(2, used_storage_gb)
+          bindDouble(3, total_storage_gb)
+          bindString(4, id)
+        }
+    notifyQueries(-1_327_740_150) { emit ->
+      emit("device")
+    }
+  }
+
+  public fun addUsedStorage(used_storage_gb: Double, id: String) {
+    driver.execute(-1_334_697_506,
+        """UPDATE device SET used_storage_gb = COALESCE(used_storage_gb, 0.0) + ? WHERE id = ? AND total_storage_gb IS NOT NULL""",
+        2) {
+          bindDouble(0, used_storage_gb)
+          bindString(1, id)
+        }
+    notifyQueries(-1_334_697_506) { emit ->
+      emit("device")
+    }
+  }
+
+  public fun subtractUsedStorage(used_storage_gb: Double, id: String) {
+    driver.execute(1_781_245_865,
+        """UPDATE device SET used_storage_gb = COALESCE(used_storage_gb, 0.0) - ? WHERE id = ? AND total_storage_gb IS NOT NULL""",
+        2) {
+          bindDouble(0, used_storage_gb)
+          bindString(1, id)
+        }
+    notifyQueries(1_781_245_865) { emit ->
+      emit("device")
+    }
+  }
+
   public fun delete(id: String) {
     driver.execute(-1_824_352_276, """DELETE FROM device WHERE id = ?""", 1) {
           bindString(0, id)

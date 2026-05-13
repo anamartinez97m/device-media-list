@@ -13,5 +13,14 @@ insert:
 INSERT OR REPLACE INTO device(id, name, type, used_storage_gb, total_storage_gb)
 VALUES (?, ?, ?, ?, ?);
 
+update:
+UPDATE device SET name = ?, type = ?, used_storage_gb = ?, total_storage_gb = ? WHERE id = ?;
+
+addUsedStorage:
+UPDATE device SET used_storage_gb = COALESCE(used_storage_gb, 0.0) + ? WHERE id = ? AND total_storage_gb IS NOT NULL;
+
+subtractUsedStorage:
+UPDATE device SET used_storage_gb = COALESCE(used_storage_gb, 0.0) - ? WHERE id = ? AND total_storage_gb IS NOT NULL;
+
 delete:
 DELETE FROM device WHERE id = ?;

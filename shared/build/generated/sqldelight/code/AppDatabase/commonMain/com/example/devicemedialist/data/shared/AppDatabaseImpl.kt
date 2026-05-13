@@ -51,7 +51,7 @@ private class AppDatabaseImpl(
           |    title TEXT NOT NULL,
           |    entry_type TEXT,
           |    release_year INTEGER,
-          |    genre TEXT,
+          |    size_gb REAL,
           |    platform TEXT NOT NULL
           |)
           """.trimMargin(), 0)

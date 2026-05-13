@@ -18,11 +18,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material.icons.rounded.Laptop
@@ -32,8 +32,6 @@ import androidx.compose.material.icons.rounded.Tablet
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -103,11 +101,6 @@ private fun deviceStorageLabel(device: Device): String {
     } else "Streaming Only"
 }
 
-private val genres = listOf(
-    "Action", "Animation", "Comedy", "Documentary",
-    "Drama", "Fantasy", "Horror", "Romance", "Sci-Fi", "Thriller",
-)
-
 @Composable
 fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
     val repository = LocalRepository.current
@@ -117,7 +110,7 @@ fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
     var selectedType by remember { mutableStateOf(EntryType.MOVIE) }
     var title by remember { mutableStateOf("") }
     var releaseYear by remember { mutableStateOf("") }
-    var selectedGenre by remember { mutableStateOf("") }
+    var fileSizeGbText by remember { mutableStateOf("") }
     var selectedPlatform by remember { mutableStateOf<Platform_setting?>(null) }
     var selectedDeviceIds by remember { mutableStateOf(emptySet<String>()) }
 
@@ -137,7 +130,7 @@ fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
                     platform = selectedPlatform?.platform ?: "",
                     entryType = selectedType.name,
                     releaseYear = releaseYear.toLongOrNull(),
-                    genre = selectedGenre.ifEmpty { null },
+                    sizeGb = fileSizeGbText.toDoubleOrNull(),
                     deviceIds = selectedDeviceIds.toList(),
                 )
                 onSave()
@@ -223,7 +216,10 @@ fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
                 )
             }
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     FormSectionLabel("RELEASE YEAR")
                     OutlinedTextField(
@@ -238,8 +234,17 @@ fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
                     )
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FormSectionLabel("GENRE")
-                    GenreDropdown(selected = selectedGenre, onGenreSelected = { selectedGenre = it })
+                    FormSectionLabel("FILE SIZE (GB)")
+                    OutlinedTextField(
+                        value = fileSizeGbText,
+                        onValueChange = { fileSizeGbText = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("e.g. 2.4", color = CineOnSurfaceVariant) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = formTextFieldColors(),
+                        singleLine = true,
+                    )
                 }
             }
 
@@ -310,54 +315,6 @@ private fun FormSectionLabel(text: String) {
 }
 
 @Composable
-private fun GenreDropdown(selected: String, onGenreSelected: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .background(CineSurfaceContainerLow)
-                .border(1.dp, CineGlassBorder, MaterialTheme.shapes.medium)
-                .clickable { expanded = true }
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = selected.ifEmpty { "Select Genre" },
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (selected.isEmpty()) CineOnSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                imageVector = Icons.Rounded.ArrowDropDown,
-                contentDescription = null,
-                tint = CineOnSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.background(CineSurfaceContainerHigh),
-        ) {
-            genres.forEach { genre ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = genre,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    },
-                    onClick = { onGenreSelected(genre); expanded = false },
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun PlatformSelector(
     platforms: List<Platform_setting>,
     selected: Platform_setting?,
@@ -371,7 +328,9 @@ private fun PlatformSelector(
         )
     } else {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             platforms.forEach { platform ->
@@ -379,7 +338,7 @@ private fun PlatformSelector(
                     platform = platform,
                     isSelected = selected == platform,
                     onClick = { onPlatformSelected(platform) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.width(88.dp),
                 )
             }
         }
@@ -404,13 +363,13 @@ private fun PlatformButton(
                 shape = MaterialTheme.shapes.medium,
             )
             .clickable { onClick() }
-            .padding(vertical = 10.dp),
+            .padding(vertical = 14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(34.dp)
+                .size(46.dp)
                 .clip(CircleShape)
                 .background(badgeColor),
             contentAlignment = Alignment.Center,

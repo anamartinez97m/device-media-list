@@ -291,10 +291,10 @@ private fun MediaCard(entry: SelectAllWithFirstDevice) {
     val badgeColor = platformBadgeColor(entry.platform)
     val posterBrush = platformPosterBrush(entry.platform)
     val subtitle = buildString {
-        entry.genre?.let { append(it) }
-        entry.release_year?.let {
+        entry.release_year?.let { append(it) }
+        entry.size_gb?.let {
             if (isNotEmpty()) append(" • ")
-            append(it)
+            append("%.1f GB".format(it))
         }
     }
 

@@ -103,6 +103,16 @@ class AppRepository(private val database: AppDatabase) {
         )
     }
 
+    suspend fun updateDevice(
+        id: String,
+        name: String,
+        type: String,
+        usedStorageGb: Double?,
+        totalStorageGb: Double?,
+    ) = withContext(Dispatchers.IO) {
+        database.deviceQueries.update(name, type, usedStorageGb, totalStorageGb, id)
+    }
+
     suspend fun deleteDevice(id: String) = withContext(Dispatchers.IO) {
         database.transaction {
             database.mediaEntryDeviceQueries.deleteForDevice(id)
@@ -115,7 +125,7 @@ class AppRepository(private val database: AppDatabase) {
         platform: String,
         entryType: String?,
         releaseYear: Long?,
-        genre: String?,
+        sizeGb: Double?,
         deviceIds: List<String>,
     ) = withContext(Dispatchers.IO) {
         val id = generateId()
@@ -125,7 +135,7 @@ class AppRepository(private val database: AppDatabase) {
                 title = title,
                 entry_type = entryType,
                 release_year = releaseYear,
-                genre = genre,
+                size_gb = sizeGb,
                 platform = platform,
             )
             deviceIds.forEach { deviceId ->
@@ -133,6 +143,9 @@ class AppRepository(private val database: AppDatabase) {
                     entry_id = id,
                     device_id = deviceId,
                 )
+                if (sizeGb != null) {
+                    database.deviceQueries.addUsedStorage(sizeGb, deviceId)
+                }
             }
         }
     }
@@ -151,7 +164,14 @@ class AppRepository(private val database: AppDatabase) {
     }
 
     suspend fun deleteMediaEntry(id: String) = withContext(Dispatchers.IO) {
+        val sizeGb = database.mediaEntryQueries.selectSizeById(id).executeAsOneOrNull()?.size_gb
+        val deviceIds = database.mediaEntryDeviceQueries.selectDeviceIdsForEntry(id).executeAsList()
         database.transaction {
+            if (sizeGb != null) {
+                deviceIds.forEach { deviceId ->
+                    database.deviceQueries.subtractUsedStorage(sizeGb, deviceId)
+                }
+            }
             database.mediaEntryDeviceQueries.deleteForEntry(id)
             database.mediaEntryQueries.delete(id)
         }

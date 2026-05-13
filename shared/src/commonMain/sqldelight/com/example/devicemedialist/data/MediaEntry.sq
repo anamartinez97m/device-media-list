@@ -3,7 +3,7 @@ CREATE TABLE media_entry (
     title TEXT NOT NULL,
     entry_type TEXT,
     release_year INTEGER,
-    genre TEXT,
+    size_gb REAL,
     platform TEXT NOT NULL
 );
 
@@ -13,7 +13,7 @@ SELECT
     me.title,
     me.entry_type,
     me.release_year,
-    me.genre,
+    me.size_gb,
     me.platform,
     d.type AS first_device_type
 FROM media_entry me
@@ -23,8 +23,11 @@ GROUP BY me.id
 ORDER BY me.title ASC;
 
 insert:
-INSERT OR REPLACE INTO media_entry(id, title, entry_type, release_year, genre, platform)
+INSERT OR REPLACE INTO media_entry(id, title, entry_type, release_year, size_gb, platform)
 VALUES (?, ?, ?, ?, ?, ?);
+
+selectSizeById:
+SELECT size_gb FROM media_entry WHERE id = ?;
 
 delete:
 DELETE FROM media_entry WHERE id = ?;
