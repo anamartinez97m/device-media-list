@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.devicemedialist.components.TopBar
 import com.example.devicemedialist.data.AppRepository
+import com.example.devicemedialist.data.BackHandler
 import com.example.devicemedialist.data.BackupManager
 import com.example.devicemedialist.screens.AddEntryScreen
 import com.example.devicemedialist.screens.DevicesScreen
@@ -70,6 +71,16 @@ fun App(repository: AppRepository, backupManager: BackupManager) {
         var showAddEntry by remember { mutableStateOf(false) }
         var selectedEntryId by remember { mutableStateOf<String?>(null) }
         var editingEntryId by remember { mutableStateOf<String?>(null) }
+
+        BackHandler(
+            enabled = editingEntryId != null || selectedEntryId != null || showAddEntry,
+        ) {
+            when {
+                editingEntryId != null -> editingEntryId = null
+                selectedEntryId != null -> selectedEntryId = null
+                showAddEntry -> showAddEntry = false
+            }
+        }
 
         Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
