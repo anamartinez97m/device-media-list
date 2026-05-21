@@ -25,10 +25,13 @@ kotlin {
             implementation(compose.materialIconsExtended)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.sqldelight.coroutines.extensions)
+            implementation(libs.coil.compose)
         }
         androidMain.dependencies {
             implementation(libs.sqldelight.android.driver)
             implementation(libs.work.runtime.ktx)
+            implementation(libs.activity.compose)
+            implementation(libs.coil.android)
         }
     }
 }

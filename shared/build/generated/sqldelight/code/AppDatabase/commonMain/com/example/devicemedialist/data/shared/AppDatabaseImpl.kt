@@ -33,7 +33,7 @@ private class AppDatabaseImpl(
 
   public object Schema : SqlSchema<QueryResult.Value<Unit>> {
     override val version: Long
-      get() = 3
+      get() = 4
 
     override fun create(driver: SqlDriver): QueryResult.Value<Unit> {
       driver.execute(null, """
@@ -53,7 +53,8 @@ private class AppDatabaseImpl(
           |    release_year INTEGER,
           |    size_gb REAL,
           |    platform TEXT NOT NULL,
-          |    seasons_detail TEXT
+          |    seasons_detail TEXT,
+          |    image_uri TEXT
           |)
           """.trimMargin(), 0)
       driver.execute(null, """
@@ -122,6 +123,9 @@ private class AppDatabaseImpl(
       }
       if (oldVersion <= 2 && newVersion > 2) {
         driver.execute(null, "ALTER TABLE media_entry ADD COLUMN seasons_detail TEXT", 0)
+      }
+      if (oldVersion <= 3 && newVersion > 3) {
+        driver.execute(null, "ALTER TABLE media_entry ADD COLUMN image_uri TEXT", 0)
       }
       return QueryResult.Unit
     }

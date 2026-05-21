@@ -1,0 +1,2 @@
+-- Migration 3 → 4: add image_uri column to media_entry.
+ALTER TABLE media_entry ADD COLUMN image_uri TEXT;

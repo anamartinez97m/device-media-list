@@ -22,5 +22,10 @@ UPDATE device SET used_storage_gb = COALESCE(used_storage_gb, 0.0) + ? WHERE id 
 subtractUsedStorage:
 UPDATE device SET used_storage_gb = COALESCE(used_storage_gb, 0.0) - ? WHERE id = ? AND total_storage_gb IS NOT NULL;
 
+selectForEntry:
+SELECT * FROM device WHERE id IN (
+    SELECT device_id FROM media_entry_device WHERE entry_id = ?
+);
+
 delete:
 DELETE FROM device WHERE id = ?;

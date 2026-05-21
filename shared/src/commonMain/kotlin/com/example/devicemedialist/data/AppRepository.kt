@@ -5,6 +5,7 @@ import app.cash.sqldelight.coroutines.mapToList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -60,6 +61,12 @@ class AppRepository(private val database: AppDatabase) {
         .asFlow()
         .mapToList(Dispatchers.IO)
         .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    fun devicesForEntry(entryId: String): Flow<List<Device>> =
+        database.deviceQueries
+            .selectForEntry(entryId)
+            .asFlow()
+            .mapToList(Dispatchers.IO)
 
     val entriesPerDevice: StateFlow<Map<String, Long>> = database.mediaEntryDeviceQueries
         .selectCountPerDevice()
@@ -127,6 +134,7 @@ class AppRepository(private val database: AppDatabase) {
         releaseYear: Long?,
         sizeGb: Double?,
         seasonsDetail: String?,
+        imageUri: String?,
         deviceIds: List<String>,
     ) = withContext(Dispatchers.IO) {
         val id = generateId()
@@ -139,6 +147,7 @@ class AppRepository(private val database: AppDatabase) {
                 size_gb = sizeGb,
                 platform = platform,
                 seasons_detail = seasonsDetail,
+                image_uri = imageUri,
             )
             deviceIds.forEach { deviceId ->
                 database.mediaEntryDeviceQueries.insertLink(
@@ -148,6 +157,44 @@ class AppRepository(private val database: AppDatabase) {
                 if (sizeGb != null) {
                     database.deviceQueries.addUsedStorage(sizeGb, deviceId)
                 }
+            }
+        }
+    }
+
+    suspend fun updateMediaEntry(
+        id: String,
+        title: String,
+        platform: String,
+        entryType: String?,
+        releaseYear: Long?,
+        sizeGb: Double?,
+        seasonsDetail: String?,
+        imageUri: String?,
+        deviceIds: List<String>,
+    ) = withContext(Dispatchers.IO) {
+        database.transaction {
+            val oldSizeGb = database.mediaEntryQueries.selectSizeById(id).executeAsOneOrNull()?.size_gb
+            val oldDeviceIds = database.mediaEntryDeviceQueries.selectDeviceIdsForEntry(id).executeAsList()
+
+            database.mediaEntryQueries.update(
+                title = title,
+                entry_type = entryType,
+                release_year = releaseYear,
+                size_gb = sizeGb,
+                platform = platform,
+                seasons_detail = seasonsDetail,
+                image_uri = imageUri,
+                id = id,
+            )
+
+            oldDeviceIds.forEach { deviceId ->
+                if (oldSizeGb != null) database.deviceQueries.subtractUsedStorage(oldSizeGb, deviceId)
+            }
+            database.mediaEntryDeviceQueries.deleteForEntry(id)
+
+            deviceIds.forEach { deviceId ->
+                database.mediaEntryDeviceQueries.insertLink(entry_id = id, device_id = deviceId)
+                if (sizeGb != null) database.deviceQueries.addUsedStorage(sizeGb, deviceId)
             }
         }
     }

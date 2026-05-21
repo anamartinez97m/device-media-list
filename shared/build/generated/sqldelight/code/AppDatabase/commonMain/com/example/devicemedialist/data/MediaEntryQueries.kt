@@ -21,7 +21,9 @@ public class MediaEntryQueries(
     size_gb: Double?,
     platform: String,
     seasons_detail: String?,
+    image_uri: String?,
     first_device_type: String?,
+    first_device_name: String?,
   ) -> T): Query<T> = Query(120_548_564, arrayOf("media_entry", "device", "media_entry_device"),
       driver, "MediaEntry.sq", "selectAllWithFirstDevice", """
   |SELECT
@@ -32,7 +34,9 @@ public class MediaEntryQueries(
   |    me.size_gb,
   |    me.platform,
   |    me.seasons_detail,
-  |    d.type AS first_device_type
+  |    me.image_uri,
+  |    d.type AS first_device_type,
+  |    d.name AS first_device_name
   |FROM media_entry me
   |LEFT JOIN media_entry_device med ON med.entry_id = me.id
   |LEFT JOIN device d ON d.id = med.device_id
@@ -47,13 +51,15 @@ public class MediaEntryQueries(
       cursor.getDouble(4),
       cursor.getString(5)!!,
       cursor.getString(6),
-      cursor.getString(7)
+      cursor.getString(7),
+      cursor.getString(8),
+      cursor.getString(9)
     )
   }
 
   public fun selectAllWithFirstDevice(): Query<SelectAllWithFirstDevice> =
       selectAllWithFirstDevice { id, title, entry_type, release_year, size_gb, platform,
-      seasons_detail, first_device_type ->
+      seasons_detail, image_uri, first_device_type, first_device_name ->
     SelectAllWithFirstDevice(
       id,
       title,
@@ -62,7 +68,9 @@ public class MediaEntryQueries(
       size_gb,
       platform,
       seasons_detail,
-      first_device_type
+      image_uri,
+      first_device_type,
+      first_device_name
     )
   }
 
@@ -87,11 +95,12 @@ public class MediaEntryQueries(
     size_gb: Double?,
     platform: String,
     seasons_detail: String?,
+    image_uri: String?,
   ) {
     driver.execute(-1_949_112_046, """
-        |INSERT OR REPLACE INTO media_entry(id, title, entry_type, release_year, size_gb, platform, seasons_detail)
-        |VALUES (?, ?, ?, ?, ?, ?, ?)
-        """.trimMargin(), 7) {
+        |INSERT OR REPLACE INTO media_entry(id, title, entry_type, release_year, size_gb, platform, seasons_detail, image_uri)
+        |VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """.trimMargin(), 8) {
           bindString(0, id)
           bindString(1, title)
           bindString(2, entry_type)
@@ -99,8 +108,38 @@ public class MediaEntryQueries(
           bindDouble(4, size_gb)
           bindString(5, platform)
           bindString(6, seasons_detail)
+          bindString(7, image_uri)
         }
     notifyQueries(-1_949_112_046) { emit ->
+      emit("media_entry")
+    }
+  }
+
+  public fun update(
+    title: String,
+    entry_type: String?,
+    release_year: Long?,
+    size_gb: Double?,
+    platform: String,
+    seasons_detail: String?,
+    image_uri: String?,
+    id: String,
+  ) {
+    driver.execute(-1_604_165_854, """
+        |UPDATE media_entry
+        |SET title = ?, entry_type = ?, release_year = ?, size_gb = ?, platform = ?, seasons_detail = ?, image_uri = ?
+        |WHERE id = ?
+        """.trimMargin(), 8) {
+          bindString(0, title)
+          bindString(1, entry_type)
+          bindLong(2, release_year)
+          bindDouble(3, size_gb)
+          bindString(4, platform)
+          bindString(5, seasons_detail)
+          bindString(6, image_uri)
+          bindString(7, id)
+        }
+    notifyQueries(-1_604_165_854) { emit ->
       emit("media_entry")
     }
   }

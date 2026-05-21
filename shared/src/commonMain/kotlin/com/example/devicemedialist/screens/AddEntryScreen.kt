@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material.icons.rounded.Laptop
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material3.IconButton
@@ -57,9 +58,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import com.example.devicemedialist.LocalRepository
 import com.example.devicemedialist.data.Device
+import com.example.devicemedialist.data.ImagePickerLauncher
 import com.example.devicemedialist.data.Platform_setting
+import com.example.devicemedialist.data.rememberImagePickerLauncher
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -128,6 +133,8 @@ fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
     var selectedPlatform by remember { mutableStateOf<Platform_setting?>(null) }
     var selectedDeviceIds by remember { mutableStateOf(emptySet<String>()) }
     var seasonEntries by remember { mutableStateOf(listOf<SeasonEntry>()) }
+    var imageUri by remember { mutableStateOf<String?>(null) }
+    val imagePicker = rememberImagePickerLauncher { uri -> imageUri = uri }
 
     val enabledPlatforms by repository.enabledPlatforms.collectAsState()
 
@@ -147,6 +154,7 @@ fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
                     releaseYear = releaseYear.toLongOrNull(),
                     sizeGb = fileSizeGbText.toDoubleOrNull(),
                     seasonsDetail = if (selectedType == EntryType.SERIES) seasonEntries.toSeasonsDetail() else null,
+                    imageUri = imageUri,
                     deviceIds = selectedDeviceIds.toList(),
                 )
                 onSave()
@@ -270,6 +278,12 @@ fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
                     onEntriesChanged = { seasonEntries = it },
                 )
             }
+
+            ImagePickerSection(
+                imageUri = imageUri,
+                launcher = imagePicker,
+                onClear = { imageUri = null },
+            )
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FormSectionLabel("SOURCE PLATFORM")
@@ -601,6 +615,69 @@ private fun SaveEntryButton(onClick: () -> Unit) {
             color = CineTertiary,
             fontWeight = FontWeight.SemiBold,
         )
+    }
+}
+
+@Composable
+internal fun ImagePickerSection(
+    imageUri: String?,
+    launcher: ImagePickerLauncher,
+    onClear: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FormSectionLabel("IMAGE (OPTIONAL)")
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp)
+                .clip(MaterialTheme.shapes.large)
+                .background(CineSurfaceContainerLow)
+                .border(1.dp, CineGlassBorder, MaterialTheme.shapes.large)
+                .clickable { launcher.launch() },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (imageUri != null) {
+                AsyncImage(
+                    model = imageUri,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.large),
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .clickable { onClear() }
+                        .padding(6.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = "Remove image",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            } else {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.AddPhotoAlternate,
+                        contentDescription = null,
+                        tint = CineOnSurfaceVariant,
+                        modifier = Modifier.size(32.dp),
+                    )
+                    Text(
+                        text = "Tap to add image",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CineOnSurfaceVariant,
+                    )
+                }
+            }
+        }
     }
 }
 

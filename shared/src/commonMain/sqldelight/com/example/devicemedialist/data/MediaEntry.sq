@@ -5,7 +5,8 @@ CREATE TABLE media_entry (
     release_year INTEGER,
     size_gb REAL,
     platform TEXT NOT NULL,
-    seasons_detail TEXT
+    seasons_detail TEXT,
+    image_uri TEXT
 );
 
 selectAllWithFirstDevice:
@@ -17,7 +18,9 @@ SELECT
     me.size_gb,
     me.platform,
     me.seasons_detail,
-    d.type AS first_device_type
+    me.image_uri,
+    d.type AS first_device_type,
+    d.name AS first_device_name
 FROM media_entry me
 LEFT JOIN media_entry_device med ON med.entry_id = me.id
 LEFT JOIN device d ON d.id = med.device_id
@@ -25,8 +28,13 @@ GROUP BY me.id
 ORDER BY me.title ASC;
 
 insert:
-INSERT OR REPLACE INTO media_entry(id, title, entry_type, release_year, size_gb, platform, seasons_detail)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT OR REPLACE INTO media_entry(id, title, entry_type, release_year, size_gb, platform, seasons_detail, image_uri)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+update:
+UPDATE media_entry
+SET title = ?, entry_type = ?, release_year = ?, size_gb = ?, platform = ?, seasons_detail = ?, image_uri = ?
+WHERE id = ?;
 
 selectSizeById:
 SELECT size_gb FROM media_entry WHERE id = ?;

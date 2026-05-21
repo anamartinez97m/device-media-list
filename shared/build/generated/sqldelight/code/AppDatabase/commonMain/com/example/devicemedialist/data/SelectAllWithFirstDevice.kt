@@ -12,5 +12,7 @@ public data class SelectAllWithFirstDevice(
   public val size_gb: Double?,
   public val platform: String,
   public val seasons_detail: String?,
+  public val image_uri: String?,
   public val first_device_type: String?,
+  public val first_device_name: String?,
 )

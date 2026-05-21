@@ -33,6 +33,8 @@ import com.example.devicemedialist.data.AppRepository
 import com.example.devicemedialist.data.BackupManager
 import com.example.devicemedialist.screens.AddEntryScreen
 import com.example.devicemedialist.screens.DevicesScreen
+import com.example.devicemedialist.screens.EditEntryScreen
+import com.example.devicemedialist.screens.EntryDetailScreen
 import com.example.devicemedialist.screens.HomeScreen
 import com.example.devicemedialist.screens.SettingsScreen
 import com.example.devicemedialist.theme.CineGlassBorder
@@ -66,6 +68,8 @@ fun App(repository: AppRepository, backupManager: BackupManager) {
     CineTrackTheme {
         var selectedTab by remember { mutableIntStateOf(0) }
         var showAddEntry by remember { mutableStateOf(false) }
+        var selectedEntryId by remember { mutableStateOf<String?>(null) }
+        var editingEntryId by remember { mutableStateOf<String?>(null) }
 
         Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -116,7 +120,12 @@ fun App(repository: AppRepository, backupManager: BackupManager) {
             },
         ) { paddingValues ->
             when (selectedTab) {
-                0 -> HomeScreen(paddingValues, onAddEntry = { showAddEntry = true })
+                0 -> HomeScreen(
+                    paddingValues = paddingValues,
+                    onAddEntry = { showAddEntry = true },
+                    onEntryClick = { selectedEntryId = it },
+                    onEditEntry = { editingEntryId = it },
+                )
                 1 -> DevicesScreen(paddingValues)
                 2 -> SettingsScreen(paddingValues, backupManager = backupManager)
             }
@@ -126,6 +135,20 @@ fun App(repository: AppRepository, backupManager: BackupManager) {
             AddEntryScreen(
                 onCancel = { showAddEntry = false },
                 onSave = { showAddEntry = false },
+            )
+        }
+        selectedEntryId?.let { entryId ->
+            EntryDetailScreen(
+                entryId = entryId,
+                onClose = { selectedEntryId = null },
+                onEdit = { id -> selectedEntryId = null; editingEntryId = id },
+            )
+        }
+        editingEntryId?.let { entryId ->
+            EditEntryScreen(
+                entryId = entryId,
+                onCancel = { editingEntryId = null },
+                onSave = { editingEntryId = null },
             )
         }
         }

@@ -12,4 +12,5 @@ public data class Media_entry(
   public val size_gb: Double?,
   public val platform: String,
   public val seasons_detail: String?,
+  public val image_uri: String?,
 )

@@ -2,6 +2,8 @@ package com.example.devicemedialist.`data`
 
 import app.cash.sqldelight.Query
 import app.cash.sqldelight.TransacterImpl
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlCursor
 import app.cash.sqldelight.db.SqlDriver
 import kotlin.Any
 import kotlin.Double
@@ -30,6 +32,33 @@ public class DeviceQueries(
 
   public fun selectAll(): Query<Device> = selectAll { id, name, type, used_storage_gb,
       total_storage_gb ->
+    Device(
+      id,
+      name,
+      type,
+      used_storage_gb,
+      total_storage_gb
+    )
+  }
+
+  public fun <T : Any> selectForEntry(entry_id: String, mapper: (
+    id: String,
+    name: String,
+    type: String,
+    used_storage_gb: Double?,
+    total_storage_gb: Double?,
+  ) -> T): Query<T> = SelectForEntryQuery(entry_id) { cursor ->
+    mapper(
+      cursor.getString(0)!!,
+      cursor.getString(1)!!,
+      cursor.getString(2)!!,
+      cursor.getDouble(3),
+      cursor.getDouble(4)
+    )
+  }
+
+  public fun selectForEntry(entry_id: String): Query<Device> = selectForEntry(entry_id) { id, name,
+      type, used_storage_gb, total_storage_gb ->
     Device(
       id,
       name,
@@ -114,5 +143,29 @@ public class DeviceQueries(
       emit("device")
       emit("media_entry_device")
     }
+  }
+
+  private inner class SelectForEntryQuery<out T : Any>(
+    public val entry_id: String,
+    mapper: (SqlCursor) -> T,
+  ) : Query<T>(mapper) {
+    override fun addListener(listener: Query.Listener) {
+      driver.addListener("device", "media_entry_device", listener = listener)
+    }
+
+    override fun removeListener(listener: Query.Listener) {
+      driver.removeListener("device", "media_entry_device", listener = listener)
+    }
+
+    override fun <R> execute(mapper: (SqlCursor) -> QueryResult<R>): QueryResult<R> =
+        driver.executeQuery(249_642_886, """
+    |SELECT device.id, device.name, device.type, device.used_storage_gb, device.total_storage_gb FROM device WHERE id IN (
+    |    SELECT device_id FROM media_entry_device WHERE entry_id = ?
+    |)
+    """.trimMargin(), mapper, 1) {
+      bindString(0, entry_id)
+    }
+
+    override fun toString(): String = "Device.sq:selectForEntry"
   }
 }

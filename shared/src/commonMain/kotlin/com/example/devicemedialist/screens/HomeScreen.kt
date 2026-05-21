@@ -2,6 +2,9 @@ package com.example.devicemedialist.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -24,6 +28,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddCircleOutline
 import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material.icons.rounded.FilterList
@@ -32,8 +38,11 @@ import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.Tablet
 import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +51,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,7 +63,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import coil3.compose.AsyncImage
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.devicemedialist.LocalRepository
@@ -100,7 +117,7 @@ private fun formatStorage(gb: Float): String = if (gb >= 1000f) {
 }
 
 @Composable
-fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit) {
+fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit, onEntryClick: (String) -> Unit, onEditEntry: (String) -> Unit) {
     val repository = LocalRepository.current
     val entries by repository.mediaEntries.collectAsState()
     val storage by repository.storageSummary.collectAsState()
@@ -132,7 +149,7 @@ fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit) {
             }
         } else {
             items(entries) { entry ->
-                MediaCard(entry)
+                MediaCard(entry, onEntryClick, onEditEntry)
             }
         }
     }
@@ -291,8 +308,13 @@ private fun EmptyLibraryHint() {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MediaCard(entry: SelectAllWithFirstDevice) {
+private fun MediaCard(entry: SelectAllWithFirstDevice, onEntryClick: (String) -> Unit, onEditEntry: (String) -> Unit) {
+    val repository = LocalRepository.current
+    val scope = rememberCoroutineScope()
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val icon: ImageVector? = deviceIcon(entry.first_device_type)
     val badgeColor = platformBadgeColor(entry.platform)
     val posterBrush = platformPosterBrush(entry.platform)
@@ -314,13 +336,26 @@ private fun MediaCard(entry: SelectAllWithFirstDevice) {
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(2f / 3f)
-            .clip(MaterialTheme.shapes.medium),
+            .clip(MaterialTheme.shapes.medium)
+            .combinedClickable(
+                onClick = { onEntryClick(entry.id) },
+                onLongClick = { showMenu = true },
+            ),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(posterBrush),
-        )
+        if (entry.image_uri != null) {
+            AsyncImage(
+                model = entry.image_uri,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(posterBrush),
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -332,22 +367,50 @@ private fun MediaCard(entry: SelectAllWithFirstDevice) {
                     )
                 ),
         )
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+            modifier = Modifier.background(CineSurfaceContainerHigh),
+        ) {
+            DropdownMenuItem(
+                text = { Text("Edit") },
+                onClick = { showMenu = false; onEditEntry(entry.id) },
+                leadingIcon = { Icon(Icons.Rounded.Edit, contentDescription = null, tint = CineTertiary) },
+            )
+            DropdownMenuItem(
+                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                onClick = { showMenu = false; showDeleteConfirm = true },
+                leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            )
+        }
+
         if (icon != null) {
-            Box(
+            Row(
                 modifier = Modifier
+                    .align(Alignment.TopStart)
                     .padding(8.dp)
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.45f))
-                    .align(Alignment.TopStart),
-                contentAlignment = Alignment.Center,
+                    .widthIn(max = 110.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.Black.copy(alpha = 0.50f))
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(12.dp),
                 )
+                entry.first_device_name?.let { name ->
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
         Text(
@@ -381,5 +444,22 @@ private fun MediaCard(entry: SelectAllWithFirstDevice) {
                 fontWeight = FontWeight.Bold,
             )
         }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Entry") },
+            text = { Text("Remove \"${entry.title}\" from your library? This cannot be undone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    scope.launch { repository.deleteMediaEntry(entry.id) }
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            },
+        )
     }
 }
