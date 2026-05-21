@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.example.devicemedialist.androidApp-mergeDebugResources-46:/values-v23/values-v23.xml",
+            "map": [
+                {
+                    "source": "/home/anamm/.gradle/caches/9.4.1/transforms/ec39a5254790f414f72bc99d57d64b13/transformed/work-runtime-2.9.1/res/values-v23/values-v23.xml",
+                    "from": {
+                        "startLines": "2,3",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,121",
+                        "endColumns": "65,62",
+                        "endOffsets": "116,179"
+                    }
+                }
+            ]
+        }
+    ]
+}

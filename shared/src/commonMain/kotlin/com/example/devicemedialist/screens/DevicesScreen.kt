@@ -532,7 +532,7 @@ private fun EditDeviceDialog(
             TextButton(
                 onClick = {
                     if (name.isNotBlank()) {
-                        val usedGb = if (hasStorage) usedGbText.toDoubleOrNull() else null
+                        val usedGb = if (hasStorage) usedGbText.toDoubleOrNull() ?: 0.0 else null
                         val totalGb = if (hasStorage) totalGbText.toDoubleOrNull() else null
                         onConfirm(name.trim(), selectedType, usedGb, totalGb)
                     }
@@ -688,7 +688,7 @@ private fun AddDeviceDialog(
             TextButton(
                 onClick = {
                     if (name.isNotBlank()) {
-                        val usedGb = if (hasStorage) usedGbText.toDoubleOrNull() else null
+                        val usedGb = if (hasStorage) usedGbText.toDoubleOrNull() ?: 0.0 else null
                         val totalGb = if (hasStorage) totalGbText.toDoubleOrNull() else null
                         onConfirm(name.trim(), selectedType, usedGb, totalGb)
                     }

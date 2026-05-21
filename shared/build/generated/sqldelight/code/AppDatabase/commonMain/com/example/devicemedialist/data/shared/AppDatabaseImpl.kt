@@ -33,7 +33,7 @@ private class AppDatabaseImpl(
 
   public object Schema : SqlSchema<QueryResult.Value<Unit>> {
     override val version: Long
-      get() = 2
+      get() = 3
 
     override fun create(driver: SqlDriver): QueryResult.Value<Unit> {
       driver.execute(null, """
@@ -52,7 +52,8 @@ private class AppDatabaseImpl(
           |    entry_type TEXT,
           |    release_year INTEGER,
           |    size_gb REAL,
-          |    platform TEXT NOT NULL
+          |    platform TEXT NOT NULL,
+          |    seasons_detail TEXT
           |)
           """.trimMargin(), 0)
       driver.execute(null, """
@@ -118,6 +119,9 @@ private class AppDatabaseImpl(
             """.trimMargin(), 0)
         driver.execute(null, "DROP TABLE IF EXISTS platform_setting", 0)
         driver.execute(null, "ALTER TABLE platform_setting_new RENAME TO platform_setting", 0)
+      }
+      if (oldVersion <= 2 && newVersion > 2) {
+        driver.execute(null, "ALTER TABLE media_entry ADD COLUMN seasons_detail TEXT", 0)
       }
       return QueryResult.Unit
     }

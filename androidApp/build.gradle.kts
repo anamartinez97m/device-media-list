@@ -38,4 +38,5 @@ kotlin {
 dependencies {
     implementation(project(":shared"))
     implementation(libs.activity.compose)
+    implementation(libs.work.runtime.ktx)
 }

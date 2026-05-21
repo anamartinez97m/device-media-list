@@ -1,0 +1,2 @@
+-- Migration 2 → 3: add seasons_detail column to media_entry.
+ALTER TABLE media_entry ADD COLUMN seasons_detail TEXT;

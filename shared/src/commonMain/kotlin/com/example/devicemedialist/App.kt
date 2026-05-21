@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.devicemedialist.components.TopBar
 import com.example.devicemedialist.data.AppRepository
+import com.example.devicemedialist.data.BackupManager
 import com.example.devicemedialist.screens.AddEntryScreen
 import com.example.devicemedialist.screens.DevicesScreen
 import com.example.devicemedialist.screens.HomeScreen
@@ -44,6 +45,10 @@ val LocalRepository = staticCompositionLocalOf<AppRepository> {
     error("No AppRepository provided")
 }
 
+val LocalBackupManager = staticCompositionLocalOf<BackupManager> {
+    error("No BackupManager provided")
+}
+
 private data class NavTab(val label: String, val icon: ImageVector)
 
 private val navTabs = listOf(
@@ -53,8 +58,11 @@ private val navTabs = listOf(
 )
 
 @Composable
-fun App(repository: AppRepository) {
-    CompositionLocalProvider(LocalRepository provides repository) {
+fun App(repository: AppRepository, backupManager: BackupManager) {
+    CompositionLocalProvider(
+        LocalRepository provides repository,
+        LocalBackupManager provides backupManager,
+    ) {
     CineTrackTheme {
         var selectedTab by remember { mutableIntStateOf(0) }
         var showAddEntry by remember { mutableStateOf(false) }
@@ -110,7 +118,7 @@ fun App(repository: AppRepository) {
             when (selectedTab) {
                 0 -> HomeScreen(paddingValues, onAddEntry = { showAddEntry = true })
                 1 -> DevicesScreen(paddingValues)
-                2 -> SettingsScreen(paddingValues)
+                2 -> SettingsScreen(paddingValues, backupManager = backupManager)
             }
         }
 

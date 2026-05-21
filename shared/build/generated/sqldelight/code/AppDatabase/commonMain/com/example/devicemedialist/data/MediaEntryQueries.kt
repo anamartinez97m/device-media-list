@@ -20,6 +20,7 @@ public class MediaEntryQueries(
     release_year: Long?,
     size_gb: Double?,
     platform: String,
+    seasons_detail: String?,
     first_device_type: String?,
   ) -> T): Query<T> = Query(120_548_564, arrayOf("media_entry", "device", "media_entry_device"),
       driver, "MediaEntry.sq", "selectAllWithFirstDevice", """
@@ -30,6 +31,7 @@ public class MediaEntryQueries(
   |    me.release_year,
   |    me.size_gb,
   |    me.platform,
+  |    me.seasons_detail,
   |    d.type AS first_device_type
   |FROM media_entry me
   |LEFT JOIN media_entry_device med ON med.entry_id = me.id
@@ -44,13 +46,14 @@ public class MediaEntryQueries(
       cursor.getLong(3),
       cursor.getDouble(4),
       cursor.getString(5)!!,
-      cursor.getString(6)
+      cursor.getString(6),
+      cursor.getString(7)
     )
   }
 
   public fun selectAllWithFirstDevice(): Query<SelectAllWithFirstDevice> =
       selectAllWithFirstDevice { id, title, entry_type, release_year, size_gb, platform,
-      first_device_type ->
+      seasons_detail, first_device_type ->
     SelectAllWithFirstDevice(
       id,
       title,
@@ -58,6 +61,7 @@ public class MediaEntryQueries(
       release_year,
       size_gb,
       platform,
+      seasons_detail,
       first_device_type
     )
   }
@@ -82,17 +86,19 @@ public class MediaEntryQueries(
     release_year: Long?,
     size_gb: Double?,
     platform: String,
+    seasons_detail: String?,
   ) {
     driver.execute(-1_949_112_046, """
-        |INSERT OR REPLACE INTO media_entry(id, title, entry_type, release_year, size_gb, platform)
-        |VALUES (?, ?, ?, ?, ?, ?)
-        """.trimMargin(), 6) {
+        |INSERT OR REPLACE INTO media_entry(id, title, entry_type, release_year, size_gb, platform, seasons_detail)
+        |VALUES (?, ?, ?, ?, ?, ?, ?)
+        """.trimMargin(), 7) {
           bindString(0, id)
           bindString(1, title)
           bindString(2, entry_type)
           bindLong(3, release_year)
           bindDouble(4, size_gb)
           bindString(5, platform)
+          bindString(6, seasons_detail)
         }
     notifyQueries(-1_949_112_046) { emit ->
       emit("media_entry")

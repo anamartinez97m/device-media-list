@@ -28,6 +28,7 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.sqldelight.android.driver)
+            implementation(libs.work.runtime.ktx)
         }
     }
 }

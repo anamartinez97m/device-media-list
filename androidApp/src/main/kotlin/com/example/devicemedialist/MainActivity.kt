@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.example.devicemedialist.data.AppRepository
+import com.example.devicemedialist.data.BackupManagerImpl
 import com.example.devicemedialist.data.DatabaseDriverFactory
 import com.example.devicemedialist.data.createAppDatabase
 
@@ -16,11 +17,15 @@ class MainActivity : ComponentActivity() {
         AppRepository(database)
     }
 
+    private val backupManager: BackupManagerImpl by lazy {
+        BackupManagerImpl(applicationContext)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            App(repository)
+            App(repository, backupManager)
         }
     }
 }

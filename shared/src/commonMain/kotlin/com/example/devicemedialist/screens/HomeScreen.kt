@@ -86,6 +86,12 @@ private fun deviceIcon(type: String?): ImageVector? = when (type?.uppercase()) {
     else -> null
 }
 
+private fun formatSeasonsDetail(detail: String): String {
+    val parts = detail.split("|")
+    return if (parts.size == 1) parts[0].replace(":", " E")
+    else "${parts.size} Seasons"
+}
+
 private fun formatStorage(gb: Float): String = if (gb >= 1000f) {
     val tb = gb / 1000f
     "%.1f TB".format(tb)
@@ -295,6 +301,12 @@ private fun MediaCard(entry: SelectAllWithFirstDevice) {
         entry.size_gb?.let {
             if (isNotEmpty()) append(" • ")
             append("%.1f GB".format(it))
+        }
+        if (entry.entry_type == "SERIES") {
+            entry.seasons_detail?.let { detail ->
+                if (isNotEmpty()) append(" • ")
+                append(formatSeasonsDetail(detail))
+            }
         }
     }
 

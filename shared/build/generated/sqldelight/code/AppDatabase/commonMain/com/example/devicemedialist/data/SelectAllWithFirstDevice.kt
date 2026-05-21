@@ -11,5 +11,6 @@ public data class SelectAllWithFirstDevice(
   public val release_year: Long?,
   public val size_gb: Double?,
   public val platform: String,
+  public val seasons_detail: String?,
   public val first_device_type: String?,
 )

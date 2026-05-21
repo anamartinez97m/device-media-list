@@ -18,13 +18,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.rounded.ArrowForwardIos
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
@@ -49,6 +50,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import com.example.devicemedialist.LocalRepository
+import com.example.devicemedialist.data.BackupManager
+import com.example.devicemedialist.data.BackupSchedule
 import com.example.devicemedialist.data.Platform_setting
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -68,12 +71,11 @@ import com.example.devicemedialist.theme.CineSurfaceContainerLow
 import com.example.devicemedialist.theme.CineTertiary
 
 @Composable
-fun SettingsScreen(paddingValues: PaddingValues) {
+fun SettingsScreen(paddingValues: PaddingValues, backupManager: BackupManager) {
     val repository = LocalRepository.current
     val storage by repository.storageSummary.collectAsState()
     val allPlatforms by repository.allPlatforms.collectAsState()
     val scope = rememberCoroutineScope()
-    var offlineModeEnabled by remember { mutableStateOf(true) }
     var showAddPlatformDialog by remember { mutableStateOf(false) }
     var platformToDelete by remember { mutableStateOf<Platform_setting?>(null) }
 
@@ -89,29 +91,6 @@ fun SettingsScreen(paddingValues: PaddingValues) {
     ) {
         item { ProfileSection() }
         item { Spacer(modifier = Modifier.height(24.dp)) }
-        item { SectionLabel("PREFERENCES") }
-        item { Spacer(modifier = Modifier.height(8.dp)) }
-        item {
-            SettingsCard {
-                SettingsToggleRow(
-                    icon = Icons.Rounded.CloudOff,
-                    title = "Offline Mode",
-                    subtitle = "Keep media cached",
-                    checked = offlineModeEnabled,
-                    onCheckedChange = { offlineModeEnabled = it },
-                )
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    color = CineGlassBorder,
-                )
-                SettingsNavRow(
-                    icon = Icons.Rounded.Tune,
-                    title = "Data Entry Options",
-                    subtitle = "Metadata preferences",
-                )
-            }
-        }
-        item { Spacer(modifier = Modifier.height(20.dp)) }
         item { SectionLabel("STORAGE & SYNC") }
         item { Spacer(modifier = Modifier.height(8.dp)) }
         item {
@@ -124,6 +103,10 @@ fun SettingsScreen(paddingValues: PaddingValues) {
                 )
             }
         }
+        item { Spacer(modifier = Modifier.height(20.dp)) }
+        item { SectionLabel("LOCAL BACKUP") }
+        item { Spacer(modifier = Modifier.height(8.dp)) }
+        item { BackupCard(backupManager = backupManager) }
         item { Spacer(modifier = Modifier.height(20.dp)) }
         item { SectionLabel("SOURCE PLATFORMS") }
         item { Spacer(modifier = Modifier.height(8.dp)) }
@@ -405,7 +388,7 @@ private fun SettingsNavRow(
             )
         }
         Icon(
-            imageVector = Icons.Rounded.ArrowForwardIos,
+            imageVector = Icons.AutoMirrored.Rounded.ArrowForwardIos,
             contentDescription = null,
             tint = CineOnSurfaceVariant,
             modifier = Modifier.size(14.dp),
@@ -616,6 +599,98 @@ private fun AddPlatformDialog(
             }
         },
     )
+}
+
+@Composable
+private fun BackupCard(backupManager: BackupManager) {
+    val schedule by backupManager.schedule.collectAsState()
+    val lastBackupMs by backupManager.lastBackupMs.collectAsState()
+    val scheduleOptions = listOf(
+        BackupSchedule.DISABLED to "Off",
+        BackupSchedule.DAILY to "Daily",
+        BackupSchedule.WEEKLY to "Weekly",
+    )
+    SettingsCard {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SettingsIconChip(Icons.Rounded.Save)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Auto Backup",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = lastBackupMs?.let { backupManager.formatLastBackupTime(it) } ?: "No backup yet",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CineOnSurfaceVariant,
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                scheduleOptions.forEach { (option, label) ->
+                    val isSelected = schedule == option
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(MaterialTheme.shapes.small)
+                            .background(if (isSelected) CineTertiary.copy(alpha = 0.15f) else CineSurfaceContainerHigh)
+                            .border(
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) CineTertiary else CineGlassBorder,
+                                shape = MaterialTheme.shapes.small,
+                            )
+                            .clickable { backupManager.setSchedule(option) }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (isSelected) CineTertiary else CineOnSurfaceVariant,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    }
+                }
+            }
+            TextButton(
+                onClick = { backupManager.backupNow() },
+                modifier = Modifier.fillMaxWidth(),
+                colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                    contentColor = CineTertiary,
+                ),
+                border = androidx.compose.foundation.BorderStroke(1.dp, CineTertiary.copy(alpha = 0.4f)),
+                shape = MaterialTheme.shapes.small,
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Save,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Backup Now",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Text(
+                text = "Saved to: ${backupManager.backupDirectoryPath()}",
+                style = MaterialTheme.typography.labelSmall,
+                color = CineOnSurfaceVariant,
+            )
+        }
+    }
 }
 
 @Composable

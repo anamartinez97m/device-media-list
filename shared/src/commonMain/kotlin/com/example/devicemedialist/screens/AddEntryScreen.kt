@@ -27,7 +27,10 @@ import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material.icons.rounded.Laptop
 import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.rounded.Tablet
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material3.Checkbox
@@ -69,6 +72,17 @@ import com.example.devicemedialist.theme.CineSurfaceContainerLow
 import com.example.devicemedialist.theme.CineTertiary
 
 private enum class EntryType { MOVIE, SERIES }
+
+private data class SeasonEntry(val season: String, val episodes: String)
+
+private fun List<SeasonEntry>.toSeasonsDetail(): String? {
+    val nonEmpty = filter { it.season.isNotBlank() }
+    if (nonEmpty.isEmpty()) return null
+    return nonEmpty.joinToString("|") { e ->
+        if (e.episodes.isNotBlank()) "S${e.season.trim()}:${e.episodes.trim()}"
+        else "S${e.season.trim()}"
+    }
+}
 
 private fun parseHexColor(hex: String): Color {
     val clean = hex.removePrefix("#")
@@ -113,6 +127,7 @@ fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
     var fileSizeGbText by remember { mutableStateOf("") }
     var selectedPlatform by remember { mutableStateOf<Platform_setting?>(null) }
     var selectedDeviceIds by remember { mutableStateOf(emptySet<String>()) }
+    var seasonEntries by remember { mutableStateOf(listOf<SeasonEntry>()) }
 
     val enabledPlatforms by repository.enabledPlatforms.collectAsState()
 
@@ -131,6 +146,7 @@ fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
                     entryType = selectedType.name,
                     releaseYear = releaseYear.toLongOrNull(),
                     sizeGb = fileSizeGbText.toDoubleOrNull(),
+                    seasonsDetail = if (selectedType == EntryType.SERIES) seasonEntries.toSeasonsDetail() else null,
                     deviceIds = selectedDeviceIds.toList(),
                 )
                 onSave()
@@ -246,6 +262,13 @@ fun AddEntryScreen(onCancel: () -> Unit, onSave: () -> Unit) {
                         singleLine = true,
                     )
                 }
+            }
+
+            if (selectedType == EntryType.SERIES) {
+                SeasonDetailSection(
+                    entries = seasonEntries,
+                    onEntriesChanged = { seasonEntries = it },
+                )
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -465,6 +488,90 @@ private fun DeviceRow(device: Device, isSelected: Boolean, onToggle: () -> Unit)
                 checkmarkColor = CineOnTertiary,
             ),
         )
+    }
+}
+
+@Composable
+private fun SeasonDetailSection(
+    entries: List<SeasonEntry>,
+    onEntriesChanged: (List<SeasonEntry>) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FormSectionLabel("SEASONS & EPISODES (OPTIONAL)")
+        entries.forEachIndexed { index, entry ->
+            SeasonRow(
+                entry = entry,
+                onSeasonChanged = { newSeason ->
+                    onEntriesChanged(entries.toMutableList().also { it[index] = entry.copy(season = newSeason) })
+                },
+                onEpisodesChanged = { newEps ->
+                    onEntriesChanged(entries.toMutableList().also { it[index] = entry.copy(episodes = newEps) })
+                },
+                onRemove = {
+                    onEntriesChanged(entries.toMutableList().also { it.removeAt(index) })
+                },
+            )
+        }
+        TextButton(
+            onClick = { onEntriesChanged(entries + SeasonEntry(season = "${entries.size + 1}", episodes = "")) },
+            contentPadding = PaddingValues(horizontal = 0.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Add,
+                contentDescription = null,
+                tint = CineTertiary,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "Add Season",
+                style = MaterialTheme.typography.labelLarge,
+                color = CineTertiary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SeasonRow(
+    entry: SeasonEntry,
+    onSeasonChanged: (String) -> Unit,
+    onEpisodesChanged: (String) -> Unit,
+    onRemove: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        OutlinedTextField(
+            value = entry.season,
+            onValueChange = { if (it.all { c -> c.isDigit() } && it.length <= 3) onSeasonChanged(it) },
+            label = { Text("Season", color = CineOnSurfaceVariant) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            shape = MaterialTheme.shapes.medium,
+            colors = formTextFieldColors(),
+            modifier = Modifier.width(88.dp),
+        )
+        OutlinedTextField(
+            value = entry.episodes,
+            onValueChange = { onEpisodesChanged(it) },
+            label = { Text("Episodes", color = CineOnSurfaceVariant) },
+            placeholder = { Text("e.g. 1-8", color = CineOnSurfaceVariant) },
+            singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            colors = formTextFieldColors(),
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = onRemove) {
+            Icon(
+                imageVector = Icons.Rounded.Close,
+                contentDescription = "Remove season",
+                tint = CineOnSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
 

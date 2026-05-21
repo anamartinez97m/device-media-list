@@ -126,6 +126,7 @@ class AppRepository(private val database: AppDatabase) {
         entryType: String?,
         releaseYear: Long?,
         sizeGb: Double?,
+        seasonsDetail: String?,
         deviceIds: List<String>,
     ) = withContext(Dispatchers.IO) {
         val id = generateId()
@@ -137,6 +138,7 @@ class AppRepository(private val database: AppDatabase) {
                 release_year = releaseYear,
                 size_gb = sizeGb,
                 platform = platform,
+                seasons_detail = seasonsDetail,
             )
             deviceIds.forEach { deviceId ->
                 database.mediaEntryDeviceQueries.insertLink(
