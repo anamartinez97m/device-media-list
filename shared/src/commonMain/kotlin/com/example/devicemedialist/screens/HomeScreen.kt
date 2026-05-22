@@ -127,26 +127,32 @@ fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit, onEntryClic
 
     var selectedType by remember { mutableStateOf<String?>(null) }
     var selectedPlatform by remember { mutableStateOf<String?>(null) }
+    var selectedDevice by remember { mutableStateOf<String?>(null) }
     var showFilters by remember { mutableStateOf(false) }
 
     val availablePlatforms = remember(entries) {
         entries.map { it.platform.uppercase() }.distinct().sorted()
     }
 
-    val filteredEntries = remember(entries, searchQuery, selectedType, selectedPlatform) {
+    val availableDevices = remember(entries) {
+        entries.mapNotNull { it.first_device_name }.distinct().sorted()
+    }
+
+    val filteredEntries = remember(entries, searchQuery, selectedType, selectedPlatform, selectedDevice) {
         entries.filter { entry ->
             val matchesSearch = searchQuery.isBlank() || entry.title.contains(searchQuery, ignoreCase = true)
             val matchesType = selectedType == null || entry.entry_type?.uppercase() == selectedType
             val matchesPlatform = selectedPlatform == null || entry.platform.uppercase() == selectedPlatform
-            matchesSearch && matchesType && matchesPlatform
+            val matchesDevice = selectedDevice == null || entry.first_device_name == selectedDevice
+            matchesSearch && matchesType && matchesPlatform && matchesDevice
         }
     }
 
-    val activeFilterCount = listOfNotNull(selectedType, selectedPlatform).size
+    val activeFilterCount = listOfNotNull(selectedType, selectedPlatform, selectedDevice).size
     val isFiltering = searchQuery.isNotBlank() || activeFilterCount > 0
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Fixed(3),
         contentPadding = PaddingValues(
             top = paddingValues.calculateTopPadding() + 16.dp,
             bottom = paddingValues.calculateBottomPadding() + 16.dp,
@@ -157,9 +163,6 @@ fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit, onEntryClic
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            StorageSummaryCard(storage)
-        }
         item(span = { GridItemSpan(maxLineSpan) }) {
             AddNewEntryButton(onAddEntry = onAddEntry)
         }
@@ -178,7 +181,10 @@ fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit, onEntryClic
                     selectedPlatform = selectedPlatform,
                     onPlatformSelected = { p -> selectedPlatform = if (selectedPlatform == p) null else p },
                     availablePlatforms = availablePlatforms,
-                    onClearAll = { selectedType = null; selectedPlatform = null },
+                    selectedDevice = selectedDevice,
+                    onDeviceSelected = { d -> selectedDevice = if (selectedDevice == d) null else d },
+                    availableDevices = availableDevices,
+                    onClearAll = { selectedType = null; selectedPlatform = null; selectedDevice = null },
                 )
             }
         }
@@ -198,73 +204,6 @@ fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit, onEntryClic
                     MediaCard(entry, onEntryClick, onEditEntry)
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun StorageSummaryCard(storage: StorageSummary) {
-    val hasStorage = storage.totalGb > 0f
-    val progress = if (hasStorage) (storage.usedGb / storage.totalGb).coerceIn(0f, 1f) else 0f
-    val usedLabel = if (hasStorage) formatStorage(storage.usedGb) else "—"
-    val totalLabel = if (hasStorage) formatStorage(storage.totalGb) else "No devices"
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.large)
-            .background(CineSurfaceContainerLow)
-            .border(1.dp, CineGlassBorder, MaterialTheme.shapes.large)
-            .padding(16.dp),
-    ) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Rounded.Cloud,
-                    contentDescription = null,
-                    tint = CineOnSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Storage Summary",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = CineOnSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(CineTertiary),
-                )
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = usedLabel,
-                    style = MaterialTheme.typography.displayLarge.copy(fontSize = 32.sp),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = if (hasStorage) "of $totalLabel Used" else totalLabel,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = CineOnSurfaceVariant,
-                )
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp)),
-                color = CineTertiary,
-                trackColor = CineSurfaceContainerHigh,
-                strokeCap = StrokeCap.Round,
-            )
         }
     }
 }
@@ -354,6 +293,9 @@ private fun LibraryFilterPanel(
     selectedPlatform: String?,
     onPlatformSelected: (String) -> Unit,
     availablePlatforms: List<String>,
+    selectedDevice: String?,
+    onDeviceSelected: (String) -> Unit,
+    availableDevices: List<String>,
     onClearAll: () -> Unit,
 ) {
     Column(
@@ -394,7 +336,23 @@ private fun LibraryFilterPanel(
                 }
             }
         }
-        if (selectedType != null || selectedPlatform != null) {
+        if (availableDevices.isNotEmpty()) {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "Device",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = CineOnSurfaceVariant,
+                )
+                availableDevices.forEach { device ->
+                    FilterPill(label = device, selected = selectedDevice == device) { onDeviceSelected(device) }
+                }
+            }
+        }
+        if (selectedType != null || selectedPlatform != null || selectedDevice != null) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 TextButton(onClick = onClearAll) {
                     Text(
@@ -495,7 +453,6 @@ private fun MediaCard(entry: SelectAllWithFirstDevice, onEntryClick: (String) ->
     val scope = rememberCoroutineScope()
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
-    val icon: ImageVector? = deviceIcon(entry.first_device_type)
     val badgeColor = platformBadgeColor(entry.platform)
     val posterBrush = platformPosterBrush(entry.platform)
     val subtitle = buildString {
@@ -503,12 +460,6 @@ private fun MediaCard(entry: SelectAllWithFirstDevice, onEntryClick: (String) ->
         entry.size_gb?.let {
             if (isNotEmpty()) append(" • ")
             append("%.1f GB".format(it))
-        }
-        if (entry.entry_type == "SERIES") {
-            entry.seasons_detail?.let { detail ->
-                if (isNotEmpty()) append(" • ")
-                append(formatSeasonsDetail(detail))
-            }
         }
     }
 
@@ -564,35 +515,6 @@ private fun MediaCard(entry: SelectAllWithFirstDevice, onEntryClick: (String) ->
             )
         }
 
-        if (icon != null) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(8.dp)
-                    .widthIn(max = 110.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(Color.Black.copy(alpha = 0.50f))
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(12.dp),
-                )
-                entry.first_device_name?.let { name ->
-                    Text(
-                        text = name,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
         Text(
             text = entry.platform.uppercase(),
             style = MaterialTheme.typography.labelSmall,
@@ -602,7 +524,7 @@ private fun MediaCard(entry: SelectAllWithFirstDevice, onEntryClick: (String) ->
                 .align(Alignment.TopEnd)
                 .padding(8.dp)
                 .clip(RoundedCornerShape(4.dp))
-                .background(badgeColor)
+                .background(badgeColor.copy(alpha = 0.60f))
                 .padding(horizontal = 5.dp, vertical = 2.dp),
         )
         Column(

@@ -222,7 +222,7 @@ fun EntryDetailScreen(entryId: String, onClose: () -> Unit, onEdit: (String) -> 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp),
+                    .height(if (entry.image_uri != null) 360.dp else 220.dp),
             ) {
                 if (entry.image_uri != null) {
                     AsyncImage(
