@@ -158,7 +158,10 @@ fun EditEntryScreen(entryId: String, onCancel: () -> Unit, onSave: () -> Unit) {
             selectedType = if (entry.entry_type?.uppercase() == "SERIES") EditEntryType.SERIES else EditEntryType.MOVIE
             title = entry.title
             releaseYear = entry.release_year?.toString() ?: ""
-            fileSizeGbText = entry.size_gb?.let { "%.4f".format(it).trimEnd('0').trimEnd('.') } ?: ""
+            fileSizeGbText = entry.size_gb?.let { sizeVal ->
+                val str = sizeVal.toString()
+                if (str.contains('.')) str.trimEnd('0').trimEnd('.') else str
+            } ?: ""
             selectedPlatform = allPlatforms.firstOrNull { it.platform == entry.platform }
                 ?: enabledPlatforms.firstOrNull()
             seasonEntries = entry.seasons_detail?.let { parseSeasonsDetailToEntries(it) } ?: emptyList()
