@@ -71,11 +71,14 @@ fun App(repository: AppRepository, backupManager: BackupManager) {
         var showAddEntry by remember { mutableStateOf(false) }
         var selectedEntryId by remember { mutableStateOf<String?>(null) }
         var editingEntryId by remember { mutableStateOf<String?>(null) }
+        var isSearchActive by remember { mutableStateOf(false) }
+        var searchQuery by remember { mutableStateOf("") }
 
         BackHandler(
-            enabled = editingEntryId != null || selectedEntryId != null || showAddEntry,
+            enabled = isSearchActive || editingEntryId != null || selectedEntryId != null || showAddEntry,
         ) {
             when {
+                isSearchActive -> { isSearchActive = false; searchQuery = "" }
                 editingEntryId != null -> editingEntryId = null
                 selectedEntryId != null -> selectedEntryId = null
                 showAddEntry -> showAddEntry = false
@@ -86,7 +89,15 @@ fun App(repository: AppRepository, backupManager: BackupManager) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = MaterialTheme.colorScheme.background,
-            topBar = { TopBar() },
+            topBar = {
+                TopBar(
+                    showSearch = selectedTab == 0,
+                    isSearchActive = isSearchActive,
+                    searchQuery = searchQuery,
+                    onSearchToggle = { isSearchActive = !isSearchActive; if (!isSearchActive) searchQuery = "" },
+                    onQueryChange = { searchQuery = it },
+                )
+            },
             bottomBar = {
                 NavigationBar(
                     modifier = Modifier
@@ -105,7 +116,7 @@ fun App(repository: AppRepository, backupManager: BackupManager) {
                     navTabs.forEachIndexed { index, tab ->
                         NavigationBarItem(
                             selected = selectedTab == index,
-                            onClick = { selectedTab = index },
+                            onClick = { selectedTab = index; isSearchActive = false; searchQuery = "" },
                             icon = {
                                 Icon(
                                     imageVector = tab.icon,
@@ -136,6 +147,7 @@ fun App(repository: AppRepository, backupManager: BackupManager) {
                     onAddEntry = { showAddEntry = true },
                     onEntryClick = { selectedEntryId = it },
                     onEditEntry = { editingEntryId = it },
+                    searchQuery = searchQuery,
                 )
                 1 -> DevicesScreen(paddingValues)
                 2 -> SettingsScreen(paddingValues, backupManager = backupManager)

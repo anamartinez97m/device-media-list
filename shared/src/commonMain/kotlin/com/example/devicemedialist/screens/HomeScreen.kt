@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,14 +32,15 @@ import androidx.compose.material.icons.rounded.AddCircleOutline
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Storage
-import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Laptop
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Tablet
 import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -117,10 +120,30 @@ private fun formatStorage(gb: Float): String = if (gb >= 1000f) {
 }
 
 @Composable
-fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit, onEntryClick: (String) -> Unit, onEditEntry: (String) -> Unit) {
+fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit, onEntryClick: (String) -> Unit, onEditEntry: (String) -> Unit, searchQuery: String = "") {
     val repository = LocalRepository.current
     val entries by repository.mediaEntries.collectAsState()
     val storage by repository.storageSummary.collectAsState()
+
+    var selectedType by remember { mutableStateOf<String?>(null) }
+    var selectedPlatform by remember { mutableStateOf<String?>(null) }
+    var showFilters by remember { mutableStateOf(false) }
+
+    val availablePlatforms = remember(entries) {
+        entries.map { it.platform.uppercase() }.distinct().sorted()
+    }
+
+    val filteredEntries = remember(entries, searchQuery, selectedType, selectedPlatform) {
+        entries.filter { entry ->
+            val matchesSearch = searchQuery.isBlank() || entry.title.contains(searchQuery, ignoreCase = true)
+            val matchesType = selectedType == null || entry.entry_type?.uppercase() == selectedType
+            val matchesPlatform = selectedPlatform == null || entry.platform.uppercase() == selectedPlatform
+            matchesSearch && matchesType && matchesPlatform
+        }
+    }
+
+    val activeFilterCount = listOfNotNull(selectedType, selectedPlatform).size
+    val isFiltering = searchQuery.isNotBlank() || activeFilterCount > 0
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
@@ -141,15 +164,39 @@ fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit, onEntryClic
             AddNewEntryButton(onAddEntry = onAddEntry)
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
-            LibrarySectionHeader()
+            LibrarySectionHeader(
+                activeFilterCount = activeFilterCount,
+                showFilters = showFilters,
+                onFilterClick = { showFilters = !showFilters },
+            )
         }
-        if (entries.isEmpty()) {
+        if (showFilters) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                EmptyLibraryHint()
+                LibraryFilterPanel(
+                    selectedType = selectedType,
+                    onTypeSelected = { t -> selectedType = if (selectedType == t) null else t },
+                    selectedPlatform = selectedPlatform,
+                    onPlatformSelected = { p -> selectedPlatform = if (selectedPlatform == p) null else p },
+                    availablePlatforms = availablePlatforms,
+                    onClearAll = { selectedType = null; selectedPlatform = null },
+                )
             }
-        } else {
-            items(entries) { entry ->
-                MediaCard(entry, onEntryClick, onEditEntry)
+        }
+        when {
+            filteredEntries.isEmpty() && isFiltering -> {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    NoResultsHint()
+                }
+            }
+            filteredEntries.isEmpty() -> {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    EmptyLibraryHint()
+                }
+            }
+            else -> {
+                items(filteredEntries) { entry ->
+                    MediaCard(entry, onEntryClick, onEditEntry)
+                }
             }
         }
     }
@@ -250,7 +297,12 @@ private fun AddNewEntryButton(onAddEntry: () -> Unit) {
 }
 
 @Composable
-private fun LibrarySectionHeader() {
+private fun LibrarySectionHeader(
+    activeFilterCount: Int,
+    showFilters: Boolean,
+    onFilterClick: () -> Unit,
+) {
+    val filterActive = activeFilterCount > 0
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -261,18 +313,146 @@ private fun LibrarySectionHeader() {
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.weight(1f))
-        TextButton(onClick = {}) {
+        TextButton(onClick = onFilterClick) {
+            if (filterActive) {
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(CineTertiary),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = activeFilterCount.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CineOnTertiary,
+                        fontSize = 10.sp,
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+            }
             Text(
-                text = "Filter",
+                text = if (showFilters) "Hide" else "Filter",
                 style = MaterialTheme.typography.labelLarge,
-                color = CineOnSurfaceVariant,
+                color = if (filterActive) CineTertiary else CineOnSurfaceVariant,
             )
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 imageVector = Icons.Rounded.FilterList,
                 contentDescription = null,
-                tint = CineOnSurfaceVariant,
+                tint = if (filterActive) CineTertiary else CineOnSurfaceVariant,
                 modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun LibraryFilterPanel(
+    selectedType: String?,
+    onTypeSelected: (String) -> Unit,
+    selectedPlatform: String?,
+    onPlatformSelected: (String) -> Unit,
+    availablePlatforms: List<String>,
+    onClearAll: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(CineSurfaceContainerLow)
+            .border(1.dp, CineGlassBorder, MaterialTheme.shapes.medium)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Type",
+                style = MaterialTheme.typography.labelMedium,
+                color = CineOnSurfaceVariant,
+            )
+            FilterPill(label = "Movie", selected = selectedType == "MOVIE") { onTypeSelected("MOVIE") }
+            FilterPill(label = "Series", selected = selectedType == "SERIES") { onTypeSelected("SERIES") }
+        }
+        if (availablePlatforms.isNotEmpty()) {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "Platform",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = CineOnSurfaceVariant,
+                )
+                availablePlatforms.forEach { platform ->
+                    val label = platform.take(1) + platform.drop(1).lowercase()
+                    FilterPill(label = label, selected = selectedPlatform == platform) { onPlatformSelected(platform) }
+                }
+            }
+        }
+        if (selectedType != null || selectedPlatform != null) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onClearAll) {
+                    Text(
+                        text = "Clear filters",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = CineOnSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
+    val bgColor = if (selected) CineTertiary else CineSurfaceContainerHigh
+    val textColor = if (selected) CineOnTertiary else CineOnSurfaceVariant
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(bgColor)
+            .border(1.dp, if (selected) CineTertiary else CineGlassBorder, RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = textColor,
+        )
+    }
+}
+
+@Composable
+private fun NoResultsHint() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Rounded.Search,
+                contentDescription = null,
+                tint = CineOnSurfaceVariant,
+                modifier = Modifier.size(40.dp),
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "No results found",
+                style = MaterialTheme.typography.labelLarge,
+                color = CineOnSurfaceVariant,
+            )
+            Text(
+                text = "Try adjusting your search or filters",
+                style = MaterialTheme.typography.labelSmall,
+                color = CineOnSurfaceVariant.copy(alpha = 0.6f),
             )
         }
     }

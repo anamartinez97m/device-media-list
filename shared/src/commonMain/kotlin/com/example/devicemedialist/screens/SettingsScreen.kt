@@ -89,7 +89,6 @@ fun SettingsScreen(paddingValues: PaddingValues, backupManager: BackupManager) {
         verticalArrangement = Arrangement.spacedBy(0.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
-        item { ProfileSection() }
         item { Spacer(modifier = Modifier.height(24.dp)) }
         item { SectionLabel("STORAGE & SYNC") }
         item { Spacer(modifier = Modifier.height(8.dp)) }
@@ -233,65 +232,6 @@ fun SettingsScreen(paddingValues: PaddingValues, backupManager: BackupManager) {
                 }
             },
         )
-    }
-}
-
-@Composable
-private fun ProfileSection() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(80.dp)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            Color(0xFFD4700A),
-                            Color(0xFF8B2500),
-                            Color(0xFF2A1008),
-                        )
-                    )
-                ),
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = "Alex Chen",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Bold,
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = "alex.chen@cinetrack.io",
-            style = MaterialTheme.typography.bodyMedium,
-            color = CineOnSurfaceVariant,
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        OutlinedButton(
-            onClick = {},
-            shape = MaterialTheme.shapes.extraLarge,
-            border = androidx.compose.foundation.BorderStroke(1.dp, CineTertiary.copy(alpha = 0.5f)),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = CineTertiary,
-            ),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Edit,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "Edit Profile",
-                style = MaterialTheme.typography.labelLarge,
-            )
-        }
     }
 }
 
