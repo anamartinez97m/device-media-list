@@ -36,6 +36,27 @@ public class MediaEntryDeviceQueries(
     )
   }
 
+  public fun <T : Any> selectAllEntryDeviceNames(mapper: (entry_id: String,
+      device_name: String) -> T): Query<T> = Query(-1_728_418_186, arrayOf("media_entry_device",
+      "device"), driver, "MediaEntryDevice.sq", "selectAllEntryDeviceNames", """
+  |SELECT med.entry_id, d.name AS device_name
+  |FROM media_entry_device med
+  |JOIN device d ON d.id = med.device_id
+  """.trimMargin()) { cursor ->
+    mapper(
+      cursor.getString(0)!!,
+      cursor.getString(1)!!
+    )
+  }
+
+  public fun selectAllEntryDeviceNames(): Query<SelectAllEntryDeviceNames> =
+      selectAllEntryDeviceNames { entry_id, device_name ->
+    SelectAllEntryDeviceNames(
+      entry_id,
+      device_name
+    )
+  }
+
   public fun insertLink(entry_id: String, device_id: String) {
     driver.execute(-1_995_813_918,
         """INSERT OR IGNORE INTO media_entry_device(entry_id, device_id) VALUES (?, ?)""", 2) {

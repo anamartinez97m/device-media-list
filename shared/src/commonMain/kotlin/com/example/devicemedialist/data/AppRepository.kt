@@ -68,6 +68,13 @@ class AppRepository(private val database: AppDatabase) {
             .asFlow()
             .mapToList(Dispatchers.IO)
 
+    val entryDeviceNames: StateFlow<Map<String, List<String>>> = database.mediaEntryDeviceQueries
+        .selectAllEntryDeviceNames()
+        .asFlow()
+        .mapToList(Dispatchers.IO)
+        .map { rows -> rows.groupBy({ it.entry_id }, { it.device_name }) }
+        .stateIn(scope, SharingStarted.Eagerly, emptyMap())
+
     val entriesPerDevice: StateFlow<Map<String, Long>> = database.mediaEntryDeviceQueries
         .selectCountPerDevice()
         .asFlow()

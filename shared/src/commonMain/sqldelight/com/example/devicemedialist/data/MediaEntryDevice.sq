@@ -20,3 +20,8 @@ DELETE FROM media_entry_device WHERE device_id = ?;
 
 selectCountPerDevice:
 SELECT device_id, COUNT(*) AS entry_count FROM media_entry_device GROUP BY device_id;
+
+selectAllEntryDeviceNames:
+SELECT med.entry_id, d.name AS device_name
+FROM media_entry_device med
+JOIN device d ON d.id = med.device_id;

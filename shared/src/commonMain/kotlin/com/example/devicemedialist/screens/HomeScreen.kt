@@ -124,31 +124,32 @@ fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit, onEntryClic
     val repository = LocalRepository.current
     val entries by repository.mediaEntries.collectAsState()
     val storage by repository.storageSummary.collectAsState()
+    val entryDeviceNames by repository.entryDeviceNames.collectAsState()
 
-    var selectedType by remember { mutableStateOf<String?>(null) }
-    var selectedPlatform by remember { mutableStateOf<String?>(null) }
-    var selectedDevice by remember { mutableStateOf<String?>(null) }
+    var selectedType by remember { mutableStateOf(emptySet<String>()) }
+    var selectedPlatform by remember { mutableStateOf(emptySet<String>()) }
+    var selectedDevice by remember { mutableStateOf(emptySet<String>()) }
     var showFilters by remember { mutableStateOf(false) }
 
     val availablePlatforms = remember(entries) {
         entries.map { it.platform.uppercase() }.distinct().sorted()
     }
 
-    val availableDevices = remember(entries) {
-        entries.mapNotNull { it.first_device_name }.distinct().sorted()
+    val availableDevices = remember(entryDeviceNames) {
+        entryDeviceNames.values.flatten().distinct().sorted()
     }
 
-    val filteredEntries = remember(entries, searchQuery, selectedType, selectedPlatform, selectedDevice) {
+    val filteredEntries = remember(entries, searchQuery, selectedType, selectedPlatform, selectedDevice, entryDeviceNames) {
         entries.filter { entry ->
             val matchesSearch = searchQuery.isBlank() || entry.title.contains(searchQuery, ignoreCase = true)
-            val matchesType = selectedType == null || entry.entry_type?.uppercase() == selectedType
-            val matchesPlatform = selectedPlatform == null || entry.platform.uppercase() == selectedPlatform
-            val matchesDevice = selectedDevice == null || entry.first_device_name == selectedDevice
+            val matchesType = selectedType.isEmpty() || entry.entry_type?.uppercase() in selectedType
+            val matchesPlatform = selectedPlatform.isEmpty() || entry.platform.uppercase() in selectedPlatform
+            val matchesDevice = selectedDevice.isEmpty() || entryDeviceNames[entry.id]?.any { it in selectedDevice } == true
             matchesSearch && matchesType && matchesPlatform && matchesDevice
         }
     }
 
-    val activeFilterCount = listOfNotNull(selectedType, selectedPlatform, selectedDevice).size
+    val activeFilterCount = selectedType.size + selectedPlatform.size + selectedDevice.size
     val isFiltering = searchQuery.isNotBlank() || activeFilterCount > 0
 
     LazyVerticalGrid(
@@ -177,14 +178,14 @@ fun HomeScreen(paddingValues: PaddingValues, onAddEntry: () -> Unit, onEntryClic
             item(span = { GridItemSpan(maxLineSpan) }) {
                 LibraryFilterPanel(
                     selectedType = selectedType,
-                    onTypeSelected = { t -> selectedType = if (selectedType == t) null else t },
+                    onTypeSelected = { t -> selectedType = if (t in selectedType) selectedType - t else selectedType + t },
                     selectedPlatform = selectedPlatform,
-                    onPlatformSelected = { p -> selectedPlatform = if (selectedPlatform == p) null else p },
+                    onPlatformSelected = { p -> selectedPlatform = if (p in selectedPlatform) selectedPlatform - p else selectedPlatform + p },
                     availablePlatforms = availablePlatforms,
                     selectedDevice = selectedDevice,
-                    onDeviceSelected = { d -> selectedDevice = if (selectedDevice == d) null else d },
+                    onDeviceSelected = { d -> selectedDevice = if (d in selectedDevice) selectedDevice - d else selectedDevice + d },
                     availableDevices = availableDevices,
-                    onClearAll = { selectedType = null; selectedPlatform = null; selectedDevice = null },
+                    onClearAll = { selectedType = emptySet(); selectedPlatform = emptySet(); selectedDevice = emptySet() },
                 )
             }
         }
@@ -288,12 +289,12 @@ private fun LibrarySectionHeader(
 
 @Composable
 private fun LibraryFilterPanel(
-    selectedType: String?,
+    selectedType: Set<String>,
     onTypeSelected: (String) -> Unit,
-    selectedPlatform: String?,
+    selectedPlatform: Set<String>,
     onPlatformSelected: (String) -> Unit,
     availablePlatforms: List<String>,
-    selectedDevice: String?,
+    selectedDevice: Set<String>,
     onDeviceSelected: (String) -> Unit,
     availableDevices: List<String>,
     onClearAll: () -> Unit,
@@ -316,8 +317,8 @@ private fun LibraryFilterPanel(
                 style = MaterialTheme.typography.labelMedium,
                 color = CineOnSurfaceVariant,
             )
-            FilterPill(label = "Movie", selected = selectedType == "MOVIE") { onTypeSelected("MOVIE") }
-            FilterPill(label = "Series", selected = selectedType == "SERIES") { onTypeSelected("SERIES") }
+            FilterPill(label = "Movie", selected = "MOVIE" in selectedType) { onTypeSelected("MOVIE") }
+            FilterPill(label = "Series", selected = "SERIES" in selectedType) { onTypeSelected("SERIES") }
         }
         if (availablePlatforms.isNotEmpty()) {
             Row(
@@ -332,7 +333,7 @@ private fun LibraryFilterPanel(
                 )
                 availablePlatforms.forEach { platform ->
                     val label = platform.take(1) + platform.drop(1).lowercase()
-                    FilterPill(label = label, selected = selectedPlatform == platform) { onPlatformSelected(platform) }
+                    FilterPill(label = label, selected = platform in selectedPlatform) { onPlatformSelected(platform) }
                 }
             }
         }
@@ -348,11 +349,11 @@ private fun LibraryFilterPanel(
                     color = CineOnSurfaceVariant,
                 )
                 availableDevices.forEach { device ->
-                    FilterPill(label = device, selected = selectedDevice == device) { onDeviceSelected(device) }
+                    FilterPill(label = device, selected = device in selectedDevice) { onDeviceSelected(device) }
                 }
             }
         }
-        if (selectedType != null || selectedPlatform != null || selectedDevice != null) {
+        if (selectedType.isNotEmpty() || selectedPlatform.isNotEmpty() || selectedDevice.isNotEmpty()) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 TextButton(onClick = onClearAll) {
                     Text(
@@ -517,7 +518,7 @@ private fun MediaCard(entry: SelectAllWithFirstDevice, onEntryClick: (String) ->
 
         Text(
             text = entry.platform.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
             color = Color.White,
             fontWeight = FontWeight.Bold,
             modifier = Modifier
